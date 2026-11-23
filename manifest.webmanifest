@@ -1,6 +1,6 @@
 {
-  "name": "Kes leert",
-  "short_name": "Kes leert",
+  "name": "Leren met spellen",
+  "short_name": "Leren",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

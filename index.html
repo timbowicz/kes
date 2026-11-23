@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Kes leert</title>
+<title>Leren met spellen</title>
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#e6f3ff">
 <link rel="icon" href="shared/icon.svg" type="image/svg+xml">
@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Kes leert">
+<meta name="apple-mobile-web-app-title" content="Leren">
 <link rel="stylesheet" href="shared/kes.css">
 </head>
 <body>
@@ -19,8 +19,8 @@
   <div class="hero">
     <div class="badge">🚀</div>
     <div>
-      <h1>Kes leert</h1>
-      <p>Huiswerk en toetsen, maar dan als spel.</p>
+      <h1 id="hoi">Hoi!</h1>
+      <p>Huiswerk en toetsen, maar dan als spel. <button class="crumb linkish" id="wissel" hidden>👤 wissel speler</button></p>
     </div>
   </div>
   <div class="lessons">
@@ -35,19 +35,29 @@
   </div>
   <p class="foot">Kaarten: © CBS/PDOK, © OpenStreetMap-bijdragers.</p>
 </main>
+<script src="shared/speler.js"></script>
 <script>
-// Voortgang per les uit localStorage (zelfde sleutel als shared/topo.js)
-document.querySelectorAll(".lesson[data-id]").forEach(function (a) {
-  try {
-    var p = JSON.parse(localStorage.getItem("kes:" + a.dataset.id));
-    if (!p) return;
-    var items = Object.values(p.items || {});
-    var known = items.filter(function (s) { return s.loc >= 3 && s.spell >= 3; }).length;
-    var last = (p.tests || [])[p.tests.length - 1];
-    a.querySelector(".voortgang").textContent =
-      "⭐ " + known + " van de " + (a.dataset.total || items.length) + " gekend" + (last ? " · laatste oefentoets: " + last.grade : "");
-  } catch (e) {}
-});
+// Naam van de speler en voortgang per les (zelfde sleutels als shared/topo.js)
+(function () {
+  var naam = SPELER.huidig();
+  if (naam) { document.getElementById("hoi").textContent = "Hoi " + naam + "!"; document.getElementById("wissel").hidden = false; }
+  document.getElementById("wissel").onclick = function () {
+    var main = document.querySelector("main");
+    SPELER.kies(function () { location.reload(); }, main);
+  };
+  document.querySelectorAll(".lesson[data-id]").forEach(function (a) {
+    try {
+      if (!naam) return;
+      var p = JSON.parse(localStorage.getItem(SPELER.sleutel(a.dataset.id)));
+      if (!p) return;
+      var items = Object.values(p.items || {});
+      var known = items.filter(function (s) { return s.loc >= 3 && s.spell >= 3; }).length;
+      var last = (p.tests || [])[p.tests.length - 1];
+      a.querySelector(".voortgang").textContent =
+        "⭐ " + known + " van de " + (a.dataset.total || items.length) + " gekend" + (last ? " · laatste oefentoets: " + last.grade : "");
+    } catch (e) {}
+  });
+})();
 </script>
 </body>
 </html>

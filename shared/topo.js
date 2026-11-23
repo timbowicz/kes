@@ -10,7 +10,7 @@
   const MAX = 4; // hoogste niveau per vaardigheid
 
   /* ================= opslag ================= */
-  const KEY = "kes:" + L.id;
+  let KEY = null; // per speler, gezet in boot()
   function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(P)); } catch (e) {} }
   function fresh() {
@@ -18,9 +18,15 @@
     ITEMS.forEach((it) => (p.items[it.id] = { loc: it.zwak ? 0 : 1, spell: it.zwak ? 0 : 1 }));
     return p;
   }
-  let P = load() || fresh();
-  ITEMS.forEach((it) => { if (!P.items[it.id]) P.items[it.id] = { loc: 0, spell: 0 }; });
-  P.seen = P.seen || {}; P.tests = P.tests || [];
+  let P = null, SPELER_NAAM = "";
+  function boot(naam) {
+    SPELER_NAAM = naam;
+    KEY = window.SPELER.sleutel(L.id);
+    P = load() || fresh();
+    ITEMS.forEach((it) => { if (!P.items[it.id]) P.items[it.id] = { loc: 0, spell: 0 }; });
+    P.seen = P.seen || {}; P.tests = P.tests || [];
+    home();
+  }
 
   function bump(id, skill, delta, cap) {
     const s = P.items[id];
@@ -74,6 +80,8 @@
       });
     } catch (e) {}
   }
+  // Spraak: vooraf opgenomen mp3's (ElevenLabs, zie tools/make_audio.py).
+  // Ontbreekt een bestand, dan valt het terug op de ingebouwde browserstem.
   let nlVoice = null;
   function pickVoice() {
     try {
@@ -82,8 +90,8 @@
     } catch (e) {}
   }
   if ("speechSynthesis" in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
-  function say(text) {
-    if (!("speechSynthesis" in window)) return;
+  function tts(text) {
+    if (!text || !("speechSynthesis" in window)) return;
     try {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
@@ -91,7 +99,32 @@
       speechSynthesis.speak(u);
     } catch (e) {}
   }
-  const speakBtn = (text) => h("button", { class: "icon-btn", "aria-label": "Hardop zeggen", onclick: (e) => { e.stopPropagation(); say(text); } }, "🔊");
+  const player = new Audio(); // één element: iOS geeft het na de eerste tik vrij
+  player.preload = "auto";
+  let queued = null;
+  const busy = () => !player.paused && !player.ended;
+  player.addEventListener("ended", () => { const f = queued; queued = null; if (f) f(); });
+  function play(src, fallback, force) {
+    if (P.mute && !force) return;
+    try { speechSynthesis.cancel(); } catch (e) {}
+    queued = null;
+    player.onerror = () => tts(fallback);
+    player.src = src;
+    const pr = player.play();
+    if (pr && pr.catch) pr.catch(() => {});
+  }
+  function say(it, opt) { // naam, en eventueel daarna het feitje
+    opt = opt || {};
+    play(`audio/naam-${it.id}.mp3`, it.name, opt.force);
+    if (opt.feit) queued = () => play(`audio/feit-${it.id}.mp3`, null, opt.force);
+  }
+  const LINES = { goed: 8, fout: 3, caps: 1, space: 1, reeks3: 1, reeks5: 1, reeks10: 1, eindeTop: 1, eindeGoed: 1, eindeOefen: 1, toets10: 1, toetsGoed: 1, toetsOefen: 1 };
+  function cheer(key, chance) { // compliment of aanmoediging; wacht tot de naam is uitgesproken
+    if (P.mute || !LINES[key] || Math.random() > (chance == null ? 1 : chance)) return;
+    const src = `../shared/audio/${key}-${1 + Math.floor(Math.random() * LINES[key])}.mp3`;
+    if (busy()) queued = () => play(src); else play(src);
+  }
+  const speakBtn = (it, feit) => h("button", { class: "icon-btn", "aria-label": "Hardop zeggen", onclick: (e) => { e.stopPropagation(); say(it, { force: true, feit }); } }, "🔊");
 
   /* ================= kaart ================= */
   function parsePath(d) {
@@ -280,36 +313,65 @@
     return "toets";
   }
 
+  const avgOf = (k) => ITEMS.reduce((a, it) => a + P.items[it.id][k], 0) / ITEMS.length;
+  const seenCount = () => ITEMS.filter((it) => P.seen[it.id]).length;
+  const DONE = {
+    ontdek: () => seenCount() >= ITEMS.length,
+    waar: () => avgOf("loc") >= 1.6,
+    kies: () => avgOf("loc") >= 1.9,
+    speur: () => avgOf("spell") >= 1.8,
+    schrijf: () => avgOf("spell") >= 3.2 && avgOf("loc") >= 3,
+    toets: () => P.tests.some((t) => t.good / t.total >= 0.9),
+  };
+  const ROUTE = [
+    { title: "Leren", ids: ["ontdek"] },
+    { title: "Oefenen", ids: ["waar", "kies", "speur", "schrijf"] },
+    { title: "Toets", ids: ["toets"] },
+  ];
+
   function home() {
     stopSpeech();
     const nKnown = ITEMS.filter((it) => known(it.id)).length;
     const pct = Math.round((ITEMS.reduce((a, it) => a + stars(it.id), 0) / (ITEMS.length * 3)) * 100);
     const tip = advice();
+    const mode = (id) => MODES.find((m) => m.id === id);
+    const nu = mode(tip);
     const last = P.tests[P.tests.length - 1];
+    const extra = (id) => id === "ontdek" ? `👀 ${seenCount()}/${ITEMS.length}` : id === "toets" && last ? `laatste: ${last.grade}` : "";
     let resetArmed = false;
     const resetBtn = h("button", { class: "btn small ghost", onclick: () => {
       if (!resetArmed) { resetArmed = true; resetBtn.textContent = "Zeker weten? Tik nog een keer"; return; }
       P = fresh(); save(); home();
     } }, "Opnieuw beginnen");
     const muteBtn = h("button", { class: "btn small ghost", onclick: () => { P.mute = !P.mute; save(); muteBtn.textContent = P.mute ? "🔇 Geluid uit" : "🔊 Geluid aan"; } }, P.mute ? "🔇 Geluid uit" : "🔊 Geluid aan");
-    app.replaceChildren(h("div", { class: "wrap" },
-      h("div", { class: "topbar" }, h("a", { class: "crumb", href: "../" }, "← Alle lessen")),
-      h("div", { class: "hero" }, h("div", { class: "badge" }, "🗺️"), h("div", {}, h("h1", {}, L.title), h("p", {}, "Hoi Kes! Leer waar alles ligt én hoe je het goed schrijft."))),
-      h("div", { class: "progress-card" },
-        h("div", { class: "meter" },
-          h("div", { class: "big" }, `${nKnown} van de ${ITEMS.length} plekken ken je al helemaal`),
-          h("div", { class: "sub" }, "Helemaal kennen = je weet waar het ligt én je schrijft het goed." + (last ? ` Laatste oefentoets: een ${last.grade}.` : "")),
-          h("div", { class: "meter-bar" }, h("i", { style: `width:${pct}%` })))),
-      h("div", { class: "modes" }, MODES.map((m, i) =>
-        h("button", { class: "mode" + (m.id === tip ? " tip" : ""), onclick: () => start(m.id) },
-          h("span", { class: "step" }, "Stap " + (i + 1)),
-          h("span", { class: "emoji" }, m.emoji), h("h3", {}, m.title), h("p", {}, m.text),
-          m.id === tip ? h("span", { class: "pill" }, "⭐ Doe dit nu") : null))),
+    app.replaceChildren(h("div", { class: "wrap narrow" },
+      h("div", { class: "topbar" }, h("a", { class: "crumb", href: "../" }, "← Alle lessen"),
+        h("button", { class: "crumb linkish", onclick: () => window.SPELER.kies(boot) }, `👤 ${SPELER_NAAM} · wissel`)),
+      h("div", { class: "hero" }, h("div", { class: "badge" }, "🗺️"), h("div", {}, h("h1", {}, L.title), h("p", {}, `Hoi ${SPELER_NAAM}! Leer waar alles ligt én hoe je het goed schrijft.`))),
+      h("button", { class: "now-card", onclick: () => start(tip) },
+        h("span", { class: "now-label" }, "Nu doen"),
+        h("span", { class: "now-emoji" }, nu.emoji),
+        h("span", { class: "now-title" }, nu.title),
+        h("span", { class: "now-text" }, nu.text),
+        h("span", { class: "btn now-btn" }, "▶ Start")),
+      h("div", { class: "route" },
+        h("div", { class: "route-head" }, h("h2", {}, "Jouw route"),
+          h("span", { class: "route-meter" }, h("span", {}, `⭐ ${nKnown}/${ITEMS.length} gekend`), h("span", { class: "meter-bar" }, h("i", { style: `width:${pct}%` })))),
+        ROUTE.map((g) => h("div", { class: "route-group" },
+          h("div", { class: "route-title" }, `${ROUTE.indexOf(g) + 1}. ${g.title}`),
+          g.ids.map((id) => {
+            const m = mode(id), done = DONE[id](), isNow = id === tip;
+            return h("button", { class: "route-row" + (done ? " done" : "") + (isNow ? " now" : ""), onclick: () => start(id) },
+              h("span", { class: "route-check" }, done ? "✅" : isNow ? "▶" : "○"),
+              h("span", { class: "route-emoji" }, m.emoji),
+              h("span", { class: "route-name" }, m.title),
+              h("span", { class: "route-extra" }, extra(id)));
+          })))),
       h("div", { class: "foot" }, muteBtn, resetBtn, h("span", {}, "Je voortgang wordt bewaard op dit apparaat. Kaart: © CBS/PDOK, © OpenStreetMap-bijdragers."))
     ));
     window.scrollTo(0, 0);
   }
-  function stopSpeech() { try { speechSynthesis.cancel(); } catch (e) {} }
+  function stopSpeech() { try { speechSynthesis.cancel(); player.pause(); queued = null; } catch (e) {} }
 
   function start(mode) {
     if (mode === "ontdek") return ontdek();
@@ -354,9 +416,9 @@
     function pick(it) {
       current = it; P.seen[it.id] = true; save();
       card.replaceChildren(
-        h("div", { class: "prompt" }, h("div", { class: "q" }, h("div", { class: "card-name spel", html: spelHTML(it) })), speakBtn(it.name)),
+        h("div", { class: "prompt" }, h("div", { class: "q" }, h("div", { class: "card-name spel", html: spelHTML(it) })), speakBtn(it, true)),
         h("div", { class: "feedback info" }, it.feit, it.tip ? h("div", { style: "margin-top:8px" }, "✏️ ", h("b", {}, it.tip)) : null));
-      say(it.name);
+      say(it, { feit: true });
       draw();
       if (ITEMS.every((x) => P.seen[x.id]) && !P.seenAllCheered) { P.seenAllCheered = true; save(); confetti(); beep("win"); }
     }
@@ -412,6 +474,8 @@
         if (slots[pos] && !slots[pos].classList.contains("bad")) slots[pos].classList.add(ok ? "ok" : "bad");
         if (ok) { streak++; best = Math.max(best, streak); } else streak = 0;
         setStreak();
+        if (ok) cheer(streak === 10 ? "reeks10" : streak === 5 ? "reeks5" : streak === 3 ? "reeks3" : "goed", streak % 5 === 0 || streak === 3 ? 1 : 0.5);
+        else if (mode !== "schrijf") cheer("fout", 0.4);
         if (!ok && !requeued.has(it.id)) {
           requeued.add(it.id);
           queue.splice(Math.min(queue.length, pos + 4), 0, it);
@@ -425,6 +489,7 @@
       const good = ids.filter((id) => firstTry[id]).length;
       const pct = good / ids.length;
       if (pct >= 0.8) { confetti(); beep("win"); }
+      cheer(pct === 1 ? "eindeTop" : pct >= 0.7 ? "eindeGoed" : "eindeOefen");
       const wrong = ids.filter((id) => !firstTry[id]).map((id) => byId[id]);
       app.replaceChildren(h("div", { class: "wrap" }, h("div", { class: "result" },
         h("div", { class: "big-emoji" }, pct === 1 ? "🏆" : pct >= 0.8 ? "🎉" : pct >= 0.5 ? "💪" : "🌱"),
@@ -445,7 +510,7 @@
         const k = kind(it);
         const cand = ITEMS.filter((o) => kind(o) === k).map((o) => o.id);
         ui.panel.replaceChildren(h("div", { class: "prompt" },
-          h("div", { class: "q", html: `Waar ligt <b>${esc(it.name)}</b>?` }), speakBtn(it.name)),
+          h("div", { class: "q", html: `Waar ligt <b>${esc(it.name)}</b>?` }), speakBtn(it)),
           h("div", { class: "feedback info" }, k === "rug" ? "Tik op de kaart waar de zandrug ligt." : k === "kanaal" ? "Tik op het goede kanaal." : "Tik op de goede stip."));
         let answered = false;
         tapHandler = (p) => {
@@ -491,7 +556,7 @@
           const ok = o === it;
           map.clear(); map.mark(it.id, ok ? "good-c" : "focus-c"); map.name(it.id, it.name, "good");
           box.children[opts.indexOf(it)].classList.add("good");
-          say(it.name);
+          say(it);
           if (ok) { beep("good"); done(true); setTimeout(next, 1200); }
           else {
             beep("bad"); e.currentTarget.classList.add("bad");
@@ -510,7 +575,7 @@
         map.mark(it.id, "focus-c");
         const opts = shuffle([it.name, ...shuffle(it.fout).slice(0, 3)]);
         const box = h("div", { class: "options" });
-        ui.panel.replaceChildren(h("div", { class: "prompt" }, h("div", { class: "q" }, `Hoe schrijf je ${deze(it)}?`), speakBtn(it.name)), box);
+        ui.panel.replaceChildren(h("div", { class: "prompt" }, h("div", { class: "q" }, `Hoe schrijf je ${deze(it)}?`), speakBtn(it)), box);
         opts.forEach((o) => box.append(h("button", { class: "opt", onclick: (e) => {
           box.querySelectorAll("button").forEach((b) => (b.disabled = true));
           const ok = o === it.name;
@@ -540,7 +605,7 @@
         if (!W) {
           W = {
             q: h("div", { class: "q" }),
-            input: h("input", { type: "text", autocapitalize: "off", autocorrect: "off", autocomplete: "off", spellcheck: "false", enterkeyhint: "done", "aria-label": "Naam" }),
+            input: h("input", { type: "text", autocapitalize: "off", autocorrect: "off", autocomplete: "off", spellcheck: "false", enterkeyhint: "done", "aria-label": "Naam", "data-1p-ignore": "true", "data-lpignore": "true", "data-form-type": "other" }),
             okBtn: h("button", { class: "btn green" }, "Klaar"),
             hintBtn: h("button", { class: "btn small ghost" }, "💡 Hint"),
             hintLine: h("div", { class: "hintline hidden" }),
@@ -582,7 +647,7 @@
           if ((r.res === "caps" || r.res === "space") && !capsWarned) {
             capsWarned = true; beep("bad");
             fb.replaceChildren(h("div", { class: "feedback info" }, h("span", { class: "title" }, "Bijna!"),
-              r.res === "caps" ? "Kijk nog eens naar de hoofdletters. Een naam begint altijd met een hoofdletter." : "Kijk nog eens naar de spaties en het streepje."));
+              (cheer(r.res), r.res === "caps") ? "Kijk nog eens naar de hoofdletters. Een naam begint altijd met een hoofdletter." : "Kijk nog eens naar de spaties en het streepje."));
             input.focus();
             return;
           }
@@ -597,7 +662,7 @@
             h("div", { style: "margin-top:4px" }, "Zo is het goed:"), h("div", { class: "diff", html: spelHTML(it) }),
             it.tip ? h("div", { style: "margin-top:6px" }, "✏️ ", it.tip) : null,
             h("div", { style: "margin-top:8px;font-weight:800" }, "Typ het nu goed over 👆")));
-          say(it.name);
+          say(it);
           phase = "copy"; input.value = ""; input.className = ""; input.placeholder = it.name; input.focus();
         };
         okBtn.onclick = submit;
@@ -621,7 +686,7 @@
     let lastGroup = null;
     order.forEach((it) => {
       if (kind(it) !== lastGroup) { lastGroup = kind(it); sheet.append(h("div", { class: "group" }, groups[lastGroup])); }
-      const input = h("input", { type: "text", autocapitalize: "off", autocorrect: "off", autocomplete: "off", spellcheck: "false", enterkeyhint: "next", id: "t-" + it.id, "aria-label": "Nummer " + it.nr });
+      const input = h("input", { type: "text", autocapitalize: "off", autocorrect: "off", autocomplete: "off", spellcheck: "false", enterkeyhint: "next", "data-1p-ignore": "true", "data-lpignore": "true", "data-form-type": "other", id: "t-" + it.id, "aria-label": "Nummer " + it.nr });
       const line = h("div", { class: "line" }, h("label", { for: "t-" + it.id }, it.nr + "."), input);
       const fix = h("div", { class: "fix hidden" });
       input.addEventListener("focus", () => { map.clear(); map.mark(it.id, "focus-c"); });
@@ -659,6 +724,7 @@
       P.tests.push({ when: new Date().toISOString(), good, total: rows.length, grade }); save();
       map.clear(); wrongs.forEach((it) => { map.mark(it.id, "bad-c"); map.name(it.id, it.name, "bad"); });
       if (good / rows.length >= 0.8) { confetti(); beep("win"); }
+      cheer(good === rows.length ? "toets10" : good / rows.length >= 0.7 ? "toetsGoed" : "toetsOefen");
       doneBtn.replaceWith(h("div", { class: "result", style: "grid-column:1/-1;padding:10px 0" },
         h("div", {}, `${good} van de ${rows.length} goed`), h("div", { class: "grade" }, grade),
         h("div", {}, good === rows.length ? "Een tien! Je bent klaar voor de toets! 🏆" : good / rows.length >= 0.8 ? "Heel goed! De rode namen nog even oefenen." : "Oefen de rode namen nog met Schrijf het op en probeer het dan opnieuw."),
@@ -666,5 +732,5 @@
     };
   }
 
-  home();
+  if (window.SPELER.huidig()) boot(window.SPELER.huidig()); else window.SPELER.kies(boot);
 })();
