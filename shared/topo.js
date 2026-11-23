@@ -369,7 +369,7 @@
       kwartierKaart(),
       h("div", { class: "route" },
         h("div", { class: "route-head" }, h("h2", {}, "Of kies zelf"),
-          h("span", { class: "route-meter" }, h("span", {}, `⭐ ${nKnown}/${ITEMS.length} gekend`), h("span", { class: "meter-bar" }, h("i", { style: `width:${pct}%` })))),
+          h("span", { class: "route-meter" }, h("span", { title: "Helemaal kennen = je weet waar het ligt én je schrijft het goed" }, `⭐ ${nKnown} van ${ITEMS.length} ken je al`), h("span", { class: "meter-bar" }, h("i", { style: `width:${pct}%` })))),
         ROUTE.map((g) => h("div", { class: "route-group" },
           h("div", { class: "route-title" }, `${ROUTE.indexOf(g) + 1}. ${g.title}`),
           g.ids.map((id) => {

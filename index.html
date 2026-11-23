@@ -54,7 +54,7 @@
       var known = items.filter(function (s) { return s.loc >= 3 && s.spell >= 3; }).length;
       var last = (p.tests || [])[p.tests.length - 1];
       a.querySelector(".voortgang").textContent =
-        "⭐ " + known + " van de " + (a.dataset.total || items.length) + " gekend" + (last ? " · laatste oefentoets: " + last.grade : "");
+        "⭐ Je kent er al " + known + " van de " + (a.dataset.total || items.length) + (last ? " · laatste oefentoets: " + last.grade : "");
     } catch (e) {}
   });
 })();
