@@ -323,3 +323,18 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .map .seen-ridge { fill: none; stroke: var(--green); stroke-width: 34; stroke-linecap: round; opacity: 0.25; }
 .chip.todo { border-color: #f5b800; background: #fffbea; }
 .chip.seen { border-color: var(--green); background: var(--green-soft); color: #137a3c; }
+
+/* ---------- telefoon (smal scherm): kaart krijgt vaste hoogte, de rest scrollt ---------- */
+@media (max-width: 700px) {
+  .game-body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .game-body .mapbox { flex: none; aspect-ratio: 1000 / 925; min-height: 0; }
+  .game-body.map-first .mapbox { order: -1; }
+  .game-head { padding: 8px 10px 6px; }
+  .game-body { padding: 0 10px 10px; }
+  .panel { padding: 12px; gap: 10px; }
+  .prompt { font-size: 20px; }
+  .opt { font-size: 18px; min-height: 52px; }
+  .goal-title { font-size: 17px; }
+  .chip { font-size: 15px; padding: 5px 10px; min-height: 36px; }
+  .dots { max-width: 140px; }
+}

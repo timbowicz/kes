@@ -19,3 +19,7 @@ Oefenspellen voor het huiswerk en de toetsen van Kes. Live op https://kes.timkop
 Voortgang staat in `localStorage` op het apparaat zelf. Geen accounts, geen tracking.
 
 Kaartdata: © CBS/PDOK (CC-BY), © OpenStreetMap-bijdragers (ODbL).
+
+## Na een wijziging
+Verhoog het versienummer achter de css/js-links, anders houden iPads de oude versie vast:
+`V=$(date +%Y%m%d%H%M); sed -i '' -E "s#(href|src)=\"([^\"]*\.(css|js))(\?v=[0-9]+)?\"#\1=\"\2?v=$V\"#g" index.html */index.html`

@@ -477,6 +477,7 @@
   function ontdek() {
     const ui = gameShell("🧭 Ontdekken");
     ui.dots.remove();
+    ui.mapbox.parentNode.classList.add("map-first"); // telefoon: eerst de kaart, dan het doel en de lijst
     const map = createMap(ui.mapbox, { ridge: true, tags: false });
     let showAll = false, current = null;
     const chips = h("div", { class: "chips" });
@@ -520,7 +521,7 @@
       draw();
       if (ITEMS.every((x) => P.seen[x.id]) && !P.seenAllCheered) { P.seenAllCheered = true; save(); confetti(); beep("win"); }
     }
-    ui.panel.append(goal, card, SESSIE ? verder : null, toggle, chips);
+    ui.panel.append(...[goal, card, SESSIE ? verder : null, toggle, chips].filter(Boolean));
     if (seenCount() < ITEMS.length) playNext("../shared/audio/ontdekIntro-1.mp3");
     map.onTap((p) => {
       const near = map.nearest(p, ITEMS.map((it) => it.id));
