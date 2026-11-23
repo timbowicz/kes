@@ -248,9 +248,16 @@
       },
       pxToUnits(px) { const m = svg.getScreenCTM(); return m ? px / m.a : px; },
       nearest(p, ids) {
-        let best = null, bd = Infinity;
-        ids.forEach((id) => { const d = distTo(id, p); if (d < bd) { bd = d; best = id; } });
-        return { id: best, d: bd };
+        // Plaatsen gaan voor: tik je binnen een vingerbreedte van een stip, dan is het die plaats,
+        // ook als er een kanaal of zandrug dichterbij loopt. Lijnen pak je toch wel ergens anders.
+        const vinger = api.pxToUnits(30);
+        let best = null, bd = Infinity, bestPt = null, bdPt = Infinity;
+        ids.forEach((id) => {
+          const d = distTo(id, p);
+          if (d < bd) { bd = d; best = id; }
+          if (GEOM[id].pt && d < bdPt) { bdPt = d; bestPt = id; }
+        });
+        return bdPt < vinger ? { id: bestPt, d: bdPt } : { id: best, d: bd };
       },
       onTap(fn) {
         let down = null;
