@@ -94,3 +94,7 @@ Wachten op Tims feedback van de iPad/iPhone. Eerste commando in de nieuwe sessie
 ## Eerdere stand (zelfde dag, ochtend)
 - Aanbevolen stap loopt niet vast (node-simulatie: ontdek > waar ×3 > speur ×3 > schrijf ×3 > toets).
 - Invoervelden zonder autocorrectie/hoofdletters (DOM gecontroleerd). Bronvermelding CBS/PDOK + OSM zichtbaar.
+
+## 23-11-2026 (4476fa8)
+- KLAAR: Ontdekken-namenlijst is geen knop meer (span), plekken alleen via de kaart.
+- ONGEVERIFIEERD: Safari-autofill (voornaam) weg? Invulvelden hebben nu `name="search-…"` en geen "naam" in placeholder/aria-label. Testen in Safari op Mac + iPad bij Schrijven, Toets en het naamveld.
