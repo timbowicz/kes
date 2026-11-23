@@ -191,7 +191,7 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 /* ---------- ontdekken ---------- */
 .card-name { font-size: clamp(28px, 4.5vw, 38px); font-weight: 900; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { border: 2px solid var(--line); background: #fff; border-radius: 99px; padding: 6px 12px; font-weight: 700; font-size: 16px; min-height: 40px; }
+.chip { border: 2px solid var(--line); background: #fff; border-radius: 99px; padding: 6px 12px; font-weight: 700; font-size: 16px; min-height: 40px; display: inline-flex; align-items: center; }
 .chip.seen { border-color: #9fd8b3; }
 .chip.active { background: var(--yellow); border-color: var(--yellow); }
 .chip .st { font-size: 12px; margin-left: 4px; }

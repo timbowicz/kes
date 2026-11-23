@@ -509,7 +509,7 @@
       if (showAll) ITEMS.forEach((it) => map.name(it.id, it.name));
       map.status(P.seen);
       if (current) { map.mark(current.id, "focus-c"); if (!showAll) map.name(current.id, current.name, "good"); }
-      chips.replaceChildren(...ITEMS.map((it) => h("button", { class: "chip" + (P.seen[it.id] ? " seen" : " todo") + (current === it ? " active" : ""), onclick: () => pick(it) },
+      chips.replaceChildren(...ITEMS.map((it) => h("span", { class: "chip" + (P.seen[it.id] ? " seen" : " todo") + (current === it ? " active" : "") },
         P.seen[it.id] ? "✓ " : "", it.name)));
       updCount();
       if (SESSIE) {
@@ -710,7 +710,7 @@
         if (!W) {
           W = {
             q: h("div", { class: "q" }),
-            input: h("input", { type: "text", autocapitalize: "off", autocorrect: "off", autocomplete: "off", spellcheck: "false", enterkeyhint: "done", "aria-label": "Naam", "data-1p-ignore": "true", "data-lpignore": "true", "data-form-type": "other" }),
+            input: h("input", { type: "text", autocapitalize: "off", autocorrect: "off", autocomplete: "off", spellcheck: "false", enterkeyhint: "done", name: "search-antwoord", "aria-label": "Antwoord", "data-1p-ignore": "true", "data-lpignore": "true", "data-form-type": "other" }),
             okBtn: h("button", { class: "btn green" }, "Klaar"),
             hintBtn: h("button", { class: "btn small ghost" }, "💡 Hint"),
             hintLine: h("div", { class: "hintline hidden" }),
@@ -721,7 +721,7 @@
         }
         const { input, okBtn, hintBtn, hintLine, fb } = W;
         W.q.textContent = `Hoe heet ${deze(it)}? Schrijf het goed!`;
-        input.value = ""; input.className = ""; input.readOnly = false; input.placeholder = "Typ hier de naam…";
+        input.value = ""; input.className = ""; input.readOnly = false; input.placeholder = "Typ het hier…";
         hintLine.classList.add("hidden"); hintLine.textContent = ""; hintBtn.disabled = false; fb.replaceChildren();
         let hints = 0, capsWarned = false, finished = false, phase = "ask";
         hintBtn.onclick = () => {
@@ -791,8 +791,8 @@
     let lastGroup = null;
     order.forEach((it) => {
       if (kind(it) !== lastGroup) { lastGroup = kind(it); sheet.append(h("div", { class: "group" }, groups[lastGroup])); }
-      const input = h("input", { type: "text", autocapitalize: "off", autocorrect: "off", autocomplete: "off", spellcheck: "false", enterkeyhint: "next", "data-1p-ignore": "true", "data-lpignore": "true", "data-form-type": "other", id: "t-" + it.id, "aria-label": "Nummer " + it.nr });
-      const line = h("div", { class: "line" }, h("label", { for: "t-" + it.id }, it.nr + "."), input);
+      const input = h("input", { type: "text", autocapitalize: "off", autocorrect: "off", autocomplete: "off", spellcheck: "false", enterkeyhint: "next", "data-1p-ignore": "true", "data-lpignore": "true", "data-form-type": "other", name: "search-t" + it.nr, id: "search-t-" + it.id, "aria-label": "Nummer " + it.nr });
+      const line = h("div", { class: "line" }, h("label", { for: "search-t-" + it.id }, it.nr + "."), input);
       const fix = h("div", { class: "fix hidden" });
       input.addEventListener("focus", () => { map.clear(); map.mark(it.id, "focus-c"); });
       input.addEventListener("keydown", (e) => {

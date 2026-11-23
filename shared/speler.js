@@ -32,7 +32,7 @@
   function kies(cb, host) {
     host = host || document.getElementById("app");
     const el = (t, a, ...k) => { const e = document.createElement(t); Object.entries(a || {}).forEach(([x, v]) => x.startsWith("on") ? e.addEventListener(x.slice(2), v) : x === "class" ? (e.className = v) : e.setAttribute(x, v)); k.forEach((c) => e.append(c)); return e; };
-    const input = el("input", { type: "text", placeholder: "Je naam", autocomplete: "off", autocorrect: "off", spellcheck: "false", maxlength: "20", "aria-label": "Je naam", "data-1p-ignore": "true", "data-lpignore": "true", "data-form-type": "other" });
+    const input = el("input", { type: "text", placeholder: "Wie ben jij?", name: "search-speler", autocomplete: "off", autocorrect: "off", spellcheck: "false", maxlength: "20", "aria-label": "Wie ben jij?", "data-1p-ignore": "true", "data-lpignore": "true", "data-form-type": "other" });
     const go = () => {
       const n = input.value.trim().replace(/\s+/g, " ");
       if (!n) return input.focus();
