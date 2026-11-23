@@ -18,7 +18,15 @@
 - Certificaat bleef eerst op `null` staan. Opgelost door het custom domain te verwijderen en opnieuw
   in te stellen via de API (dat maakt twee commits op CNAME: Delete + Create).
 
+- 23-11 middag: spelerskeuze (naam alleen in tekst, voortgang per speler), lesmenu met
+  'Jouw kwartiertje' (3-4 opdrachten, ±13-15 min, leidt van opdracht naar opdracht) en 'Of kies zelf'.
+  Playwright: volledig kwartiertje doorlopen tot 'Je kwartiertje zit erop!', 0 console-fouten.
+- Audio: 65 mp3's met ElevenLabs-stem Dex (voice id SpRzmdV0YTgetjcWNbpH, multilingual_v2):
+  20 namen + 20 feitjes in `topografie-drenthe/audio/`, 25 zinnen in `shared/audio/`. Geen namen in de audio.
+  Gegenereerd via de ElevenLabs-MCP (Tims account), ruwe bestanden in `tools/audio-raw/` (niet in git).
+
 ## ONGEVERIFIEERD
+- Uitspraak van de 20 plaatsnamen door Dex niet beluisterd door mij (Tim moet even luisteren).
 - Niet getest op een echte iPad (alleen een iPad-formaat in Chromium). Spraak (nl-NL) en
   het schermtoetsenbord niet getest. Of iOS het toetsenbord echt openhoudt tussen vragen
   is alleen in Chromium nagebootst.

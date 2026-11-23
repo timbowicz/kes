@@ -283,3 +283,24 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .who-card p { margin: 0; color: var(--ink-soft); font-size: 17px; }
 .who-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 .who-btn { min-width: 120px; font-size: 22px; }
+
+/* ---------- kwartiertje ---------- */
+.kwartier {
+  border-radius: 24px; background: linear-gradient(135deg, #ffb347, var(--orange)); color: #fff;
+  box-shadow: 0 6px 0 var(--orange-dark), 0 16px 30px rgba(229, 109, 31, 0.25); padding: 20px 20px 22px; margin-bottom: 26px;
+}
+.kw-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.kw-label { font-size: clamp(24px, 4vw, 32px); font-weight: 900; }
+.kw-tijd { font-weight: 900; font-size: 18px; background: rgba(255,255,255,0.25); padding: 4px 12px; border-radius: 99px; white-space: nowrap; }
+.kw-sub { margin: 6px 0 12px; font-size: 17px; opacity: 0.95; }
+.kw-list { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 8px; }
+.kw-list li { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.18); border-radius: 14px; padding: 10px 14px; font-size: 19px; font-weight: 800; }
+.kw-list li.nu { background: #fff; color: var(--ink); }
+.kw-list li.af { opacity: 0.7; }
+.kw-nr { width: 30px; height: 30px; border-radius: 99px; background: rgba(255,255,255,0.3); display: grid; place-items: center; font-size: 16px; flex: none; }
+.kw-list li.nu .kw-nr { background: var(--orange); color: #fff; }
+.kw-emoji { font-size: 22px; }
+.kw-name { flex: 1; }
+.kw-min { font-size: 15px; opacity: 0.85; }
+.kw-btn { width: 100%; background: #fff; color: var(--orange-dark); box-shadow: 0 4px 0 rgba(0,0,0,0.12); font-size: 24px; min-height: 64px; }
+.btn:disabled { opacity: 0.55; cursor: default; }

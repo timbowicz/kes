@@ -118,7 +118,7 @@
     play(`audio/naam-${it.id}.mp3`, it.name, opt.force);
     if (opt.feit) queued = () => play(`audio/feit-${it.id}.mp3`, null, opt.force);
   }
-  const LINES = { goed: 8, fout: 3, caps: 1, space: 1, reeks3: 1, reeks5: 1, reeks10: 1, eindeTop: 1, eindeGoed: 1, eindeOefen: 1, toets10: 1, toetsGoed: 1, toetsOefen: 1 };
+  const LINES = { goed: 8, fout: 3, caps: 1, space: 1, reeks3: 1, reeks5: 1, reeks10: 1, eindeTop: 1, eindeGoed: 1, eindeOefen: 1, toets10: 1, toetsGoed: 1, toetsOefen: 1, sessieStart: 1, sessieKlaar: 1, volgende: 1 };
   function cheer(key, chance) { // compliment of aanmoediging; wacht tot de naam is uitgesproken
     if (P.mute || !LINES[key] || Math.random() > (chance == null ? 1 : chance)) return;
     const src = `../shared/audio/${key}-${1 + Math.floor(Math.random() * LINES[key])}.mp3`;
@@ -335,7 +335,6 @@
     const pct = Math.round((ITEMS.reduce((a, it) => a + stars(it.id), 0) / (ITEMS.length * 3)) * 100);
     const tip = advice();
     const mode = (id) => MODES.find((m) => m.id === id);
-    const nu = mode(tip);
     const last = P.tests[P.tests.length - 1];
     const extra = (id) => id === "ontdek" ? `👀 ${seenCount()}/${ITEMS.length}` : id === "toets" && last ? `laatste: ${last.grade}` : "";
     let resetArmed = false;
@@ -348,14 +347,9 @@
       h("div", { class: "topbar" }, h("a", { class: "crumb", href: "../" }, "← Alle lessen"),
         h("button", { class: "crumb linkish", onclick: () => window.SPELER.kies(boot) }, `👤 ${SPELER_NAAM} · wissel`)),
       h("div", { class: "hero" }, h("div", { class: "badge" }, "🗺️"), h("div", {}, h("h1", {}, L.title), h("p", {}, `Hoi ${SPELER_NAAM}! Leer waar alles ligt én hoe je het goed schrijft.`))),
-      h("button", { class: "now-card", onclick: () => start(tip) },
-        h("span", { class: "now-label" }, "Nu doen"),
-        h("span", { class: "now-emoji" }, nu.emoji),
-        h("span", { class: "now-title" }, nu.title),
-        h("span", { class: "now-text" }, nu.text),
-        h("span", { class: "btn now-btn" }, "▶ Start")),
+      kwartierKaart(),
       h("div", { class: "route" },
-        h("div", { class: "route-head" }, h("h2", {}, "Jouw route"),
+        h("div", { class: "route-head" }, h("h2", {}, "Of kies zelf"),
           h("span", { class: "route-meter" }, h("span", {}, `⭐ ${nKnown}/${ITEMS.length} gekend`), h("span", { class: "meter-bar" }, h("i", { style: `width:${pct}%` })))),
         ROUTE.map((g) => h("div", { class: "route-group" },
           h("div", { class: "route-title" }, `${ROUTE.indexOf(g) + 1}. ${g.title}`),
@@ -373,6 +367,73 @@
   }
   function stopSpeech() { try { speechSynthesis.cancel(); player.pause(); queued = null; } catch (e) {} }
 
+  /* ---------- kwartiertje: een vast plan van 3-4 opdrachten ---------- */
+  const MINUTEN = { ontdek: 4, waar: 3, kies: 3, speur: 3, schrijf: 4, toets: 5 };
+  const PLANNEN = {
+    ontdek: ["ontdek", "waar", "kies", "speur"],
+    waar: ["waar", "kies", "speur", "schrijf"],
+    kies: ["kies", "speur", "schrijf", "waar"],
+    speur: ["waar", "speur", "schrijf", "schrijf"],
+    schrijf: ["kies", "schrijf", "schrijf", "toets"],
+    toets: ["schrijf", "toets", "waar"],
+  };
+  const KWARTIER = 15 * 60 * 1000;
+  let SESSIE = null; // { plan, i, start }
+  const vandaag = () => new Date().toISOString().slice(0, 10);
+  function kwartierKaart() {
+    const plan = SESSIE ? SESSIE.plan : PLANNEN[advice()];
+    const totaal = plan.reduce((a, id) => a + MINUTEN[id], 0);
+    const gedaan = (P.sessies || []).includes(vandaag());
+    const bezig = !!SESSIE;
+    return h("div", { class: "kwartier" },
+      h("div", { class: "kw-head" }, h("span", { class: "kw-label" }, "⏱️ Jouw kwartiertje"), h("span", { class: "kw-tijd" }, `± ${totaal} min`)),
+      h("div", { class: "kw-sub" }, bezig ? `Je bent bij opdracht ${SESSIE.i + 1} van ${plan.length}.` : gedaan ? "✅ Vandaag al gedaan! Nog een keer mag ook." : `Doe deze ${plan.length} opdrachten na elkaar. Dan ben je klaar!`),
+      h("ol", { class: "kw-list" }, plan.map((id, i) => {
+        const m = MODES.find((x) => x.id === id), af = bezig && i < SESSIE.i, nu = bezig ? i === SESSIE.i : i === 0;
+        return h("li", { class: (af ? "af" : "") + (nu ? " nu" : "") },
+          h("span", { class: "kw-nr" }, af ? "✓" : String(i + 1)), h("span", { class: "kw-emoji" }, m.emoji),
+          h("span", { class: "kw-name" }, m.title), h("span", { class: "kw-min" }, `${MINUTEN[id]} min`));
+      })),
+      h("button", { class: "btn kw-btn", onclick: bezig ? () => start(SESSIE.plan[SESSIE.i]) : startSessie }, bezig ? `▶ Verder met opdracht ${SESSIE.i + 1}` : "▶ Start je kwartiertje"));
+  }
+  function startSessie() {
+    SESSIE = { plan: PLANNEN[advice()].slice(), i: 0, start: Date.now() };
+    cheer("sessieStart");
+    start(SESSIE.plan[0]);
+  }
+  function volgendeOpdracht() {
+    SESSIE.i++;
+    if (SESSIE.i >= SESSIE.plan.length || Date.now() - SESSIE.start >= KWARTIER) return sessieKlaar();
+    cheer("volgende");
+    start(SESSIE.plan[SESSIE.i]);
+  }
+  function sessieKlaar() {
+    const min = Math.max(1, Math.round((Date.now() - SESSIE.start) / 60000));
+    const gedaan = SESSIE.i;
+    SESSIE = null;
+    P.sessies = (P.sessies || []).filter((d) => d !== vandaag()).concat(vandaag()); save();
+    stopSpeech(); confetti(); beep("win"); cheer("sessieKlaar");
+    app.replaceChildren(h("div", { class: "wrap" }, h("div", { class: "result" },
+      h("div", { class: "big-emoji" }, "🏁"),
+      h("div", { class: "score" }, "Je kwartiertje zit erop!"),
+      h("div", {}, `${gedaan} ${gedaan === 1 ? "opdracht" : "opdrachten"} gedaan in ${min} ${min === 1 ? "minuut" : "minuten"}. Heel goed, ${SPELER_NAAM}!`),
+      h("div", {}, "Morgen weer een kwartiertje? Zo onthoud je het het beste."),
+      h("div", { class: "buttons" }, h("button", { class: "btn", onclick: home }, "Terug naar menu")))));
+  }
+  // knoppen onderaan een uitslag: in een kwartiertje door naar de volgende opdracht
+  function eindKnoppen(opnieuw, opnieuwTekst) {
+    if (SESSIE) {
+      const laatste = SESSIE.i + 1 >= SESSIE.plan.length;
+      return h("div", { class: "buttons" },
+        h("button", { class: "btn green", onclick: volgendeOpdracht }, laatste ? "🏁 Kwartiertje afronden" : "Volgende opdracht →"),
+        h("button", { class: "btn ghost", onclick: () => { SESSIE = null; home(); } }, "Stoppen"));
+    }
+    return h("div", { class: "buttons" },
+      h("button", { class: "btn", onclick: opnieuw }, opnieuwTekst),
+      h("button", { class: "btn ghost", onclick: home }, "Terug naar menu"));
+  }
+  const sessieTitel = (t) => SESSIE ? `Opdracht ${SESSIE.i + 1}/${SESSIE.plan.length} · ${t}` : t;
+
   function start(mode) {
     if (mode === "ontdek") return ontdek();
     if (mode === "toets") return toets();
@@ -388,7 +449,7 @@
     app.replaceChildren(h("div", { class: "game" },
       h("div", { class: "game-head" },
         h("button", { class: "icon-btn", "aria-label": "Terug", onclick: home }, "←"),
-        h("div", { class: "title" }, title), dots, streak),
+        h("div", { class: "title" }, sessieTitel(title)), dots, streak),
       h("div", { class: "game-body" }, panel, mapbox)));
     return { dots, streak, panel, mapbox };
   }
@@ -412,7 +473,13 @@
       chips.replaceChildren(...ITEMS.map((it) => h("button", { class: "chip" + (P.seen[it.id] ? " seen" : "") + (current === it ? " active" : ""), onclick: () => pick(it) },
         it.name, h("span", { class: "st" }, "⭐".repeat(stars(it.id)) || "·"))));
       updCount();
+      if (SESSIE) {
+        const alles = ITEMS.every((x) => P.seen[x.id]);
+        verder.disabled = !alles;
+        verder.textContent = alles ? "Klaar! Volgende opdracht →" : `Bekijk alle plekken (${seenCount()}/${ITEMS.length})`;
+      }
     }
+    const verder = h("button", { class: "btn green", onclick: volgendeOpdracht }, "");
     function pick(it) {
       current = it; P.seen[it.id] = true; save();
       card.replaceChildren(
@@ -422,7 +489,7 @@
       draw();
       if (ITEMS.every((x) => P.seen[x.id]) && !P.seenAllCheered) { P.seenAllCheered = true; save(); confetti(); beep("win"); }
     }
-    ui.panel.append(h("div", { class: "prompt" }, h("div", { class: "q" }, "Tik op een stip, kanaal of de Hondsrug")), card, toggle, chips);
+    ui.panel.append(h("div", { class: "prompt" }, h("div", { class: "q" }, "Tik op een stip, kanaal of de Hondsrug")), card, SESSIE ? verder : null, toggle, chips);
     map.onTap((p) => {
       const near = map.nearest(p, ITEMS.map((it) => it.id));
       if (near.d < map.pxToUnits(36)) pick(byId[near.id]);
@@ -498,9 +565,7 @@
         best >= 3 ? h("div", {}, `🔥 Langste reeks: ${best} goed achter elkaar`) : null,
         wrong.length ? h("div", {}, h("div", { style: "font-weight:800;margin-bottom:8px" }, "Deze nog even oefenen:"),
           h("div", { class: "list" }, wrong.map((it) => h("span", { class: "chip spel", html: spelHTML(it) })))) : null,
-        h("div", { class: "buttons" },
-          h("button", { class: "btn", onclick: () => round(mode) }, "Nog een keer"),
-          h("button", { class: "btn ghost", onclick: home }, "Terug naar menu")))));
+        eindKnoppen(() => round(mode), "Nog een keer"))));
     }
 
     /* ---- vragen per modus ---- */
@@ -699,7 +764,7 @@
     const doneBtn = h("button", { class: "btn green", style: "grid-column:1/-1;margin-top:10px" }, "Klaar! Nakijken");
     sheet.append(doneBtn);
     app.replaceChildren(h("div", { class: "wrap" },
-      h("div", { class: "topbar" }, h("button", { class: "icon-btn", "aria-label": "Terug", onclick: home }, "←"), h("div", { style: "font-weight:800;font-size:20px;flex:1" }, "📝 Oefentoets " + L.region)),
+      h("div", { class: "topbar" }, h("button", { class: "icon-btn", "aria-label": "Terug", onclick: home }, "←"), h("div", { style: "font-weight:800;font-size:20px;flex:1" }, sessieTitel("📝 Oefentoets " + L.region))),
       h("p", { style: "margin:6px 0 14px;color:var(--ink-soft);font-size:17px" }, "Schrijf bij elk nummer en elke letter de goede naam. Let op hoofdletters! Geen hints, net als op school."),
       h("div", { class: "toets" }, mapbox, sheet)));
     map = createMap(mapbox, { ridge: false, tags: true });
@@ -728,7 +793,7 @@
       doneBtn.replaceWith(h("div", { class: "result", style: "grid-column:1/-1;padding:10px 0" },
         h("div", {}, `${good} van de ${rows.length} goed`), h("div", { class: "grade" }, grade),
         h("div", {}, good === rows.length ? "Een tien! Je bent klaar voor de toets! 🏆" : good / rows.length >= 0.8 ? "Heel goed! De rode namen nog even oefenen." : "Oefen de rode namen nog met Schrijf het op en probeer het dan opnieuw."),
-        h("div", { class: "buttons" }, h("button", { class: "btn", onclick: toets }, "Nieuwe oefentoets"), h("button", { class: "btn ghost", onclick: home }, "Terug naar menu"))));
+        eindKnoppen(toets, "Nieuwe oefentoets")));
     };
   }
 
