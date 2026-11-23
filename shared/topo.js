@@ -274,7 +274,7 @@
     const avg = (k) => ITEMS.reduce((a, it) => a + P.items[it.id][k], 0) / ITEMS.length;
     if (seen < ITEMS.length) return "ontdek";
     if (avg("loc") < 1.6) return "waar";
-    if (avg("loc") < 2.4) return "kies";
+    if (avg("loc") < 1.9) return "kies";
     if (avg("spell") < 1.8) return "speur";
     if (avg("spell") < 3.2 || avg("loc") < 3) return "schrijf";
     return "toets";
@@ -305,7 +305,7 @@
           h("span", { class: "step" }, "Stap " + (i + 1)),
           h("span", { class: "emoji" }, m.emoji), h("h3", {}, m.title), h("p", {}, m.text),
           m.id === tip ? h("span", { class: "pill" }, "⭐ Doe dit nu") : null))),
-      h("div", { class: "foot" }, muteBtn, resetBtn, h("span", {}, "Je voortgang wordt bewaard op dit apparaat."))
+      h("div", { class: "foot" }, muteBtn, resetBtn, h("span", {}, "Je voortgang wordt bewaard op dit apparaat. Kaart: © CBS/PDOK, © OpenStreetMap-bijdragers."))
     ));
     window.scrollTo(0, 0);
   }
@@ -378,14 +378,14 @@
     waar: { title: "📍 Waar ligt het?", skill: "loc", cap: 4, n: 10 },
     kies: { title: "🔤 Hoe heet het?", skill: "loc", cap: 2, n: 10 },
     speur: { title: "🔍 Spellingspeurder", skill: "spell", cap: 2, n: 10 },
-    schrijf: { title: "✏️ Schrijf het op", skill: "spell", cap: 4, n: 10 },
+    schrijf: { title: "✏️ Schrijf het op", skill: "spell", cap: 4, n: 10, locToo: true },
   };
 
   function round(mode) {
     const cfg = ROUND[mode];
     const ui = gameShell(cfg.title);
     const map = createMap(ui.mapbox, { ridge: false, tags: false });
-    let tapHandler = null;
+    let tapHandler = null, W = null;
     map.onTap((p) => { if (tapHandler) tapHandler(p); });
     const queue = shuffle(pickItems(cfg.skill, cfg.n));
     const firstTry = {}; // id -> true/false
@@ -405,7 +405,7 @@
         opts = opts || {};
         if (!(it.id in firstTry)) {
           firstTry[it.id] = ok;
-          if (ok && !opts.noGain) bump(it.id, cfg.skill, 1, cfg.cap);
+          if (ok && !opts.noGain) { bump(it.id, cfg.skill, 1, cfg.cap); if (cfg.locToo) bump(it.id, "loc", 1, MAX); }
           if (!ok) bump(it.id, cfg.skill, -1);
           if (opts.alsoLoc === false) bump(it.id, "loc", -1);
         }
@@ -536,15 +536,24 @@
       schrijf(it, done, next) {
         if (kind(it) === "rug") map.showRidge(true);
         map.mark(it.id, "focus-c");
-        const input = h("input", { type: "text", autocapitalize: "off", autocorrect: "off", autocomplete: "off", spellcheck: "false", enterkeyhint: "done", "aria-label": "Naam", placeholder: "Typ hier de naam…" });
-        const okBtn = h("button", { class: "btn green" }, "Klaar");
-        const hintBtn = h("button", { class: "btn small ghost" }, "💡 Hint");
-        const hintLine = h("div", { class: "hintline hidden" });
-        const fb = h("div", {});
+        // Eén invoerveld voor de hele ronde: zo blijft het iPad-toetsenbord open tussen de vragen.
+        if (!W) {
+          W = {
+            q: h("div", { class: "q" }),
+            input: h("input", { type: "text", autocapitalize: "off", autocorrect: "off", autocomplete: "off", spellcheck: "false", enterkeyhint: "done", "aria-label": "Naam" }),
+            okBtn: h("button", { class: "btn green" }, "Klaar"),
+            hintBtn: h("button", { class: "btn small ghost" }, "💡 Hint"),
+            hintLine: h("div", { class: "hintline hidden" }),
+            fb: h("div", {}),
+          };
+          ui.panel.replaceChildren(h("div", { class: "prompt" }, W.q), h("div", { class: "write" }, W.input, W.okBtn),
+            h("div", { style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap" }, W.hintBtn, W.hintLine), W.fb);
+        }
+        const { input, okBtn, hintBtn, hintLine, fb } = W;
+        W.q.textContent = `Hoe heet ${deze(it)}? Schrijf het goed!`;
+        input.value = ""; input.className = ""; input.readOnly = false; input.placeholder = "Typ hier de naam…";
+        hintLine.classList.add("hidden"); hintLine.textContent = ""; hintBtn.disabled = false; fb.replaceChildren();
         let hints = 0, capsWarned = false, finished = false, phase = "ask";
-        ui.panel.replaceChildren(
-          h("div", { class: "prompt" }, h("div", { class: "q" }, `Hoe heet ${deze(it)}? Schrijf het goed!`)),
-          h("div", { class: "write" }, input, okBtn), h("div", { style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap" }, hintBtn, hintLine), fb);
         hintBtn.onclick = () => {
           hints++;
           hintLine.classList.remove("hidden");
@@ -555,14 +564,14 @@
         const submit = () => {
           if (finished) return;
           if (phase === "copy") {
-            if (norm(input.value) === it.name) { finished = true; input.className = "good"; beep("good"); setTimeout(next, 700); }
+            if (norm(input.value) === it.name) { finished = true; input.readOnly = true; input.className = "good"; beep("good"); setTimeout(next, 700); }
             else { input.className = "bad"; beep("bad"); setTimeout(() => (input.className = ""), 600); }
             return;
           }
           const r = check(it, input.value);
           if (r.res === "empty") return input.focus();
           if (r.res === "good") {
-            finished = true; input.className = "good"; beep("good");
+            finished = true; input.readOnly = true; input.className = "good"; beep("good");
             done(true, { noGain: hints > 0 });
             map.clear(); map.mark(it.id, "good-c"); map.name(it.id, it.name, "good");
             fb.replaceChildren(h("div", { class: "feedback good" }, h("span", { class: "title" }, hints ? "✅ Goed! (met hint)" : "✅ Precies goed!"),
@@ -592,8 +601,8 @@
           phase = "copy"; input.value = ""; input.className = ""; input.placeholder = it.name; input.focus();
         };
         okBtn.onclick = submit;
-        input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } });
-        setTimeout(() => input.focus(), 50);
+        input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } };
+        input.focus();
       },
     };
 
