@@ -119,6 +119,7 @@
     else play(`audio/naam-${it.id}.mp3`, it.name, opt.force);
   }
   const LINES = { goed: 8, fout: 3, caps: 1, space: 1, reeks3: 1, reeks5: 1, reeks10: 1, eindeTop: 1, eindeGoed: 1, eindeOefen: 1, toets10: 1, toetsGoed: 1, toetsOefen: 1, sessieStart: 1, sessieKlaar: 1, volgende: 1 };
+  function playNext(src) { if (P.mute) return; if (busy()) queued = () => play(src); else play(src); }
   function cheer(key, chance) { // compliment of aanmoediging; wacht tot de naam is uitgesproken
     if (P.mute || !LINES[key] || Math.random() > (chance == null ? 1 : chance)) return;
     const src = `../shared/audio/${key}-${1 + Math.floor(Math.random() * LINES[key])}.mp3`;
@@ -174,11 +175,13 @@
     for (const [id, d] of Object.entries(M.ridges || {})) ridgeG.append(s("path", { d, class: "ridge", "data-id": id }));
     for (const [id, d] of Object.entries(M.canals)) svg.append(s("path", { d, class: "canal", "data-id": id }));
     const hlUnder = s("g", {}); svg.append(hlUnder);
+    const statusLines = s("g", {}); svg.append(statusLines);
     ITEMS.filter((it) => kind(it) === "plaats").forEach((it) => {
       const [x, y] = M.points[it.id];
       const r = it.size === "hoofdstad" ? 15 : it.size === "stad" ? 10 : 7.5;
       svg.append(s("circle", { cx: x, cy: y, r, class: "pt" + (it.size === "stad" ? " stad" : "") }));
     });
+    const statusPts = s("g", {}); svg.append(statusPts);
     const over = s("g", {}); svg.append(over);
     const tagsG = s("g", {}); svg.append(tagsG);
     const namesG = s("g", {}); svg.append(namesG);
@@ -219,6 +222,22 @@
           const isPt = !!GEOM[it.id].pt;
           const t = s("text", { x: isPt ? x - 4 : x, y: isPt ? y - 16 : y, class: "tag", "text-anchor": "middle" });
           t.textContent = it.nr; tagsG.append(t);
+        });
+      },
+      status(seen) { // ontdekt = groen met vinkje, nog niet = gele ring
+        statusLines.replaceChildren(); statusPts.replaceChildren();
+        if (!seen) return;
+        ITEMS.forEach((it) => {
+          const g = GEOM[it.id], ok = !!seen[it.id];
+          if (g.pt) {
+            const r = it.size === "hoofdstad" ? 15 : 11;
+            if (ok) {
+              statusPts.append(s("circle", { cx: g.pt[0], cy: g.pt[1], r, class: "seen-dot" }));
+              const t = s("text", { x: g.pt[0], y: g.pt[1] + 5, class: "seen-tick" }); t.textContent = "✓"; statusPts.append(t);
+            } else statusPts.append(s("circle", { cx: g.pt[0], cy: g.pt[1], r: r + 8, class: "todo-ring" }));
+          } else if (kind(it) === "kanaal") {
+            statusLines.append(s("path", { d: g.d, class: ok ? "seen-line" : "todo-line" }));
+          } else if (ok) statusLines.append(s("path", { d: g.d, class: "seen-ridge" }));
         });
       },
       tapmark(p) { over.append(s("circle", { cx: p[0], cy: p[1], r: 9, class: "tapmark" })); },
@@ -461,17 +480,29 @@
     const map = createMap(ui.mapbox, { ridge: true, tags: false });
     let showAll = false, current = null;
     const chips = h("div", { class: "chips" });
-    const card = h("div", {});
+    const card = h("div", {}, h("div", { class: "feedback info" }, "👆 Tik op een plek met een gele ring. Dan hoor je hoe hij heet en krijg je een weetje."));
     const counter = h("div", { class: "streak" });
     ui.streak.replaceWith(counter);
+    const goalBar = h("i", {});
+    const goalText = h("span", { class: "goal-count" });
+    const goal = h("div", { class: "goal" },
+      h("div", { class: "goal-title" }, "🎯 Tik alle plekken aan en kijk goed waar ze liggen"),
+      h("div", { class: "goal-row" }, h("div", { class: "meter-bar goal-meter" }, goalBar), goalText),
+      h("div", { class: "goal-legend" }, h("span", { class: "lg todo" }, "nog ontdekken"), h("span", { class: "lg ok" }, "✓ al bekeken")));
     const toggle = h("label", { class: "toggle" }, h("input", { type: "checkbox", onchange: (e) => { showAll = e.target.checked; draw(); } }), "Alle namen tonen");
-    function updCount() { counter.textContent = `👀 ${ITEMS.filter((it) => P.seen[it.id]).length}/${ITEMS.length}`; }
+    function updCount() {
+      const n = seenCount();
+      counter.textContent = `👀 ${n}/${ITEMS.length}`;
+      goalBar.style.width = `${(n / ITEMS.length) * 100}%`;
+      goalText.textContent = n >= ITEMS.length ? "Alles bekeken! 🎉" : `${n} van de ${ITEMS.length}`;
+    }
     function draw() {
       map.clear();
       if (showAll) ITEMS.forEach((it) => map.name(it.id, it.name));
+      map.status(P.seen);
       if (current) { map.mark(current.id, "focus-c"); if (!showAll) map.name(current.id, current.name, "good"); }
-      chips.replaceChildren(...ITEMS.map((it) => h("button", { class: "chip" + (P.seen[it.id] ? " seen" : "") + (current === it ? " active" : ""), onclick: () => pick(it) },
-        it.name, h("span", { class: "st" }, "⭐".repeat(stars(it.id)) || "·"))));
+      chips.replaceChildren(...ITEMS.map((it) => h("button", { class: "chip" + (P.seen[it.id] ? " seen" : " todo") + (current === it ? " active" : ""), onclick: () => pick(it) },
+        P.seen[it.id] ? "✓ " : "", it.name)));
       updCount();
       if (SESSIE) {
         const alles = ITEMS.every((x) => P.seen[x.id]);
@@ -489,7 +520,8 @@
       draw();
       if (ITEMS.every((x) => P.seen[x.id]) && !P.seenAllCheered) { P.seenAllCheered = true; save(); confetti(); beep("win"); }
     }
-    ui.panel.append(h("div", { class: "prompt" }, h("div", { class: "q" }, "Tik op een stip, kanaal of de Hondsrug")), card, SESSIE ? verder : null, toggle, chips);
+    ui.panel.append(goal, card, SESSIE ? verder : null, toggle, chips);
+    if (seenCount() < ITEMS.length) playNext("../shared/audio/ontdekIntro-1.mp3");
     map.onTap((p) => {
       const near = map.nearest(p, ITEMS.map((it) => it.id));
       if (near.d < map.pxToUnits(36)) pick(byId[near.id]);

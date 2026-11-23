@@ -1,7 +1,9 @@
 """Zet ElevenLabs-opnames op hun plek.
 
 Per plek is er één opname "Naam. Feitje." (tools/audio-v4/item-<id>/*.mp3).
-- audio/item-<id>.mp3  = de hele opname (Ontdekken: naam + feitje)
+- audio/item-<id>.mp3  = de hele opname (Ontdekken: naam + feitje). Begint het feitje zelf al
+  met de naam, dan staat er een losse opname van alleen het feitje in tools/audio-v4/feit-<id>/
+  en wordt die gebruikt (anders hoor je de naam twee keer).
 - audio/naam-<id>.mp3  = alleen de naam, geknipt tot de eerste pauze.
   Zo klinkt de losse naam precies hetzelfde als in de zin.
 Zinnen (tools/audio-v4/zin-<key>/*.mp3) gaan naar shared/audio/<key>.mp3.
@@ -31,7 +33,8 @@ def first_pause(path, min_pause=0.3):
 for d in sorted(glob.glob(os.path.join(SRC, "item-*"))):
     key = os.path.basename(d)[5:]
     f = sorted(glob.glob(os.path.join(d, "*.mp3")))[-1]
-    shutil.copy(f, os.path.join(OUT, f"item-{key}.mp3"))
+    feit = sorted(glob.glob(os.path.join(SRC, f"feit-{key}", "*.mp3")))
+    shutil.copy(feit[-1] if feit else f, os.path.join(OUT, f"item-{key}.mp3"))
     cut = first_pause(f)
     if cut is None:
         print("GEEN PAUZE", key); continue

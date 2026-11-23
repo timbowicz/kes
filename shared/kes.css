@@ -304,3 +304,22 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .kw-min { font-size: 15px; opacity: 0.85; }
 .kw-btn { width: 100%; background: #fff; color: var(--orange-dark); box-shadow: 0 4px 0 rgba(0,0,0,0.12); font-size: 24px; min-height: 64px; }
 .btn:disabled { opacity: 0.55; cursor: default; }
+
+/* ---------- ontdekken: doel en status ---------- */
+.goal { background: #fff7d6; border: 3px solid var(--yellow); border-radius: 16px; padding: 12px 14px; display: grid; gap: 8px; }
+.goal-title { font-weight: 900; font-size: 19px; line-height: 1.25; }
+.goal-row { display: flex; align-items: center; gap: 12px; }
+.goal-meter { flex: 1; height: 16px; margin: 0; background: #fff; }
+.goal-count { font-weight: 900; font-size: 18px; white-space: nowrap; }
+.goal-legend { display: flex; gap: 14px; font-size: 14px; font-weight: 700; color: var(--ink-soft); }
+.goal-legend .lg::before { content: ""; display: inline-block; width: 14px; height: 14px; border-radius: 99px; margin-right: 6px; vertical-align: -2px; }
+.goal-legend .todo::before { border: 3px solid #f5b800; background: #fff; box-sizing: border-box; }
+.goal-legend .ok::before { background: var(--green); }
+.map .seen-dot { fill: var(--green); stroke: #fff; stroke-width: 2.5; }
+.map .seen-tick { font: 900 15px var(--font); fill: #fff; text-anchor: middle; pointer-events: none; }
+.map .todo-ring { fill: rgba(255, 210, 63, 0.25); stroke: #f5b800; stroke-width: 4; }
+.map .seen-line { fill: none; stroke: var(--green); stroke-width: 11; stroke-linecap: round; stroke-linejoin: round; opacity: 0.5; }
+.map .todo-line { fill: none; stroke: #f5b800; stroke-width: 13; stroke-linecap: round; stroke-linejoin: round; opacity: 0.35; }
+.map .seen-ridge { fill: none; stroke: var(--green); stroke-width: 34; stroke-linecap: round; opacity: 0.25; }
+.chip.todo { border-color: #f5b800; background: #fffbea; }
+.chip.seen { border-color: var(--green); background: var(--green-soft); color: #137a3c; }
