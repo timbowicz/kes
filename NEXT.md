@@ -12,18 +12,20 @@
 - Schrijf het op: één invoerveld per ronde, houdt focus tussen vragen (Playwright: same=true focus=true).
 - Bronvermelding CBS/PDOK + OSM zichtbaar op lespagina en overzicht.
 - Werkbladfoto's (HEIC) staan in `.gitignore` en zitten niet in de repo.
+- Live op https://kes.timkoppers.com (23-11): DNS-CNAME bij TransIP, certificaat `approved`,
+  HTTPS verplicht (http geeft 301 naar https), les geeft 200. Overzichtspagina met voortgang per les
+  en manifest voor het beginscherm.
+- Certificaat bleef eerst op `null` staan. Opgelost door het custom domain te verwijderen en opnieuw
+  in te stellen via de API (dat maakt twee commits op CNAME: Delete + Create).
 
 ## ONGEVERIFIEERD
 - Niet getest op een echte iPad (alleen een iPad-formaat in Chromium). Spraak (nl-NL) en
   het schermtoetsenbord niet getest. Of iOS het toetsenbord echt openhoudt tussen vragen
   is alleen in Chromium nagebootst.
-- HTTPS voor kes.timkoppers.com: kan pas nadat DNS werkt.
 
 ## GEBLOKKEERD
-- DNS bij TransIP (Tim): record `kes  CNAME  timbowicz.github.io.` toevoegen.
+- Niets.
 
 ## VOLGENDE STAP
-Na de DNS-wijziging:
-`dig +short kes.timkoppers.com` → moet `timbowicz.github.io.` tonen. Daarna HTTPS aanzetten:
-`gh api -X PUT repos/timbowicz/kes/pages -F https_enforced=true`
-(werkt pas zodra GitHub het certificaat heeft uitgegeven, meestal binnen een uur).
+Tim test op Kes' iPad: https://kes.timkoppers.com → Deel → Zet op beginscherm, dan 'Schrijf het op'.
+Nieuwe les: `cp -r topografie-drenthe topografie-<gebied>` (zie README).
