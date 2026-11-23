@@ -8,6 +8,10 @@
 <meta name="theme-color" content="#e6f3ff">
 <link rel="icon" href="shared/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="shared/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kes leert">
 <link rel="stylesheet" href="shared/kes.css">
 </head>
 <body>
@@ -21,14 +25,29 @@
   </div>
   <div class="lessons">
     <!-- Nieuwe les? Voeg hier een kaartje toe (nieuwste bovenaan). -->
-    <a class="lesson" href="topografie-drenthe/">
+    <a class="lesson" href="topografie-drenthe/" data-id="topografie-drenthe" data-total="20">
       <span class="emoji">🗺️</span>
       <h2>Topografie Drenthe</h2>
       <p>16 plaatsen, 3 kanalen en de Hondsrug. Waar ligt het en hoe schrijf je het?</p>
       <span class="when">Aardrijkskunde · november 2026</span>
+      <span class="voortgang"></span>
     </a>
   </div>
   <p class="foot">Kaarten: © CBS/PDOK, © OpenStreetMap-bijdragers.</p>
 </main>
+<script>
+// Voortgang per les uit localStorage (zelfde sleutel als shared/topo.js)
+document.querySelectorAll(".lesson[data-id]").forEach(function (a) {
+  try {
+    var p = JSON.parse(localStorage.getItem("kes:" + a.dataset.id));
+    if (!p) return;
+    var items = Object.values(p.items || {});
+    var known = items.filter(function (s) { return s.loc >= 3 && s.spell >= 3; }).length;
+    var last = (p.tests || [])[p.tests.length - 1];
+    a.querySelector(".voortgang").textContent =
+      "⭐ " + known + " van de " + (a.dataset.total || items.length) + " gekend" + (last ? " · laatste oefentoets: " + last.grade : "");
+  } catch (e) {}
+});
+</script>
 </body>
 </html>

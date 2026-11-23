@@ -235,3 +235,5 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .lesson h2 { font-size: 23px; }
 .lesson p { margin: 0; color: var(--ink-soft); }
 .lesson .when { margin-top: auto; font-size: 14px; font-weight: 800; color: var(--orange-dark); }
+.lesson .voortgang { font-size: 15px; font-weight: 700; color: var(--green); }
+.lesson .voortgang:empty { display: none; }
