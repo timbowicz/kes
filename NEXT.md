@@ -19,7 +19,7 @@
 - 'gekend' vervangen door 'Je kent er al X van de 20' / 'X van 20 ken je al' (live gecontroleerd met curl/grep).
 
 - Plaatsen gaan voor kanalen bij tikken (Ontdekken): binnen 30px van een stip wint de plaats.
-  Playwright: Hoogeveen, Eelde, Assen, Klazienaveen, Smilde, Meppel op 0/10/20px richting kanaal → plaats; kanalen elders nog tikbaar.
+  Playwright: Hoogeveen, Eelde, Assen, Klazienaveen, Smilde, Meppel op 0/10/20px richting kanaal → plaats; kanalen elders nog tikbaar. Tim (23-11): werkt op de iPad.
 
 ### ONGEVERIFIEERD
 - **Niets getest op een echte iPad of iPhone.** Alleen Chromium op die schermformaten.
