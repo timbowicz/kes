@@ -113,10 +113,10 @@
     const pr = player.play();
     if (pr && pr.catch) pr.catch(() => {});
   }
-  function say(it, opt) { // naam, en eventueel daarna het feitje
+  function say(it, opt) { // alleen de naam, of naam + feitje als één doorlopende opname
     opt = opt || {};
-    play(`audio/naam-${it.id}.mp3`, it.name, opt.force);
-    if (opt.feit) queued = () => play(`audio/feit-${it.id}.mp3`, null, opt.force);
+    if (opt.feit) play(`audio/item-${it.id}.mp3`, it.name, opt.force);
+    else play(`audio/naam-${it.id}.mp3`, it.name, opt.force);
   }
   const LINES = { goed: 8, fout: 3, caps: 1, space: 1, reeks3: 1, reeks5: 1, reeks10: 1, eindeTop: 1, eindeGoed: 1, eindeOefen: 1, toets10: 1, toetsGoed: 1, toetsOefen: 1, sessieStart: 1, sessieKlaar: 1, volgende: 1 };
   function cheer(key, chance) { // compliment of aanmoediging; wacht tot de naam is uitgesproken

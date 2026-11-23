@@ -21,9 +21,10 @@
 - 23-11 middag: spelerskeuze (naam alleen in tekst, voortgang per speler), lesmenu met
   'Jouw kwartiertje' (3-4 opdrachten, ±13-15 min, leidt van opdracht naar opdracht) en 'Of kies zelf'.
   Playwright: volledig kwartiertje doorlopen tot 'Je kwartiertje zit erop!', 0 console-fouten.
-- Audio: 65 mp3's met ElevenLabs-stem Dex (voice id SpRzmdV0YTgetjcWNbpH, multilingual_v2):
-  20 namen + 20 feitjes in `topografie-drenthe/audio/`, 25 zinnen in `shared/audio/`. Geen namen in de audio.
-  Gegenereerd via de ElevenLabs-MCP (Tims account), ruwe bestanden in `tools/audio-raw/` (niet in git).
+- Audio: ElevenLabs-stem Dex (voice id SpRzmdV0YTgetjcWNbpH), model **eleven_v4**, stability 0.5, style 0.2.
+  Per plek één opname 'Naam. Feitje.' → `audio/item-<id>.mp3`; de losse naam wordt daaruit geknipt
+  (`tools/split_audio.py`, tot de eerste pauze) zodat naam en zin identiek klinken. 25 zinnen in `shared/audio/`.
+  Ruwe bestanden in `tools/audio-v4/` (niet in git). Geen spelersnamen in de audio.
 
 ## ONGEVERIFIEERD
 - Uitspraak van de 20 plaatsnamen door Dex niet beluisterd door mij (Tim moet even luisteren).
