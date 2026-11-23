@@ -1,0 +1,10 @@
+# Foto's van werkbladen (naam en handschrift van Kes): nooit publiceren
+*.HEIC
+*.heic
+*.jpg
+*.jpeg
+!shared/*.jpg
+# Ruwe brondata voor de kaarten
+tools/raw/
+.DS_Store
+.playwright-mcp/
