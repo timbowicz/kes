@@ -1,5 +1,34 @@
 # NEXT — Kes leert
 
+## Sessie 25-11-2026: eigen toetsenbord (n.a.v. iPad-foto Tim 24-11)
+
+### Probleem (foto)
+Oefentoets op iPad liggend: het iOS-toetsenbord bedekte de onderste helft en schoof de pagina op.
+Daardoor viel de kaart deels onder de statusbalk en werd hij klein (Drenthe ~300px). Tussen velden
+wisselen maakte niet duidelijk welk nummer je invult.
+
+### KLAAR (Playwright Chromium, file://, 0 page-errors)
+- Toets en 'Schrijf het op' typen nu op een **toetsenbord in de app** (`keyboard()` + `kField()` in topo.js).
+  Er zijn geen `<input>`s meer in die schermen (`document.activeElement` = BODY tijdens spelen), dus iOS
+  opent zijn eigen toetsenbord niet en Safari-autofill/1Password zit er niet meer tussen.
+  Shift werkt één keer per druk en hoofdletters gaan nooit automatisch (de hoofdletter blijft dus iets wat Kes zelf moet doen).
+  Een los toetsenbord werkt via één `keydown`-listener op het document.
+- Oefentoets staat nu in een scherm met vaste hoogte: de kaart staat links op volle hoogte, rechts scrollt de lijst en daaronder staat het toetsenbord.
+  De actieve regel krijgt een oranje rand en het nummer op de kaart een groot oranje bolletje.
+  Via een kaartnummer tikken kies je die regel. Enter gaat naar het volgende lege veld; is alles ingevuld, dan wiebelt 'Nakijken'. Teller ✏️ x/20 bovenin.
+- Kaart zoomt in op Drenthe plus alle plekken (viewBox). Gemeten breedte van Drenthe op 1180×820:
+  toets 453→540px, schrijf met iOS-toetsenbord (gesimuleerd 1180×420) 299→540px.
+- Tikvoorrang (Ontdekken) na de zoom opnieuw getest: 6 plaatsen × 0/10/20px × 4 richtingen = 0 fouten.
+- Staand (820×1180) en telefoon (390×844): alles past op één scherm, en het toetsenbord staat onderaan in beeld.
+
+### ONGEVERIFIEERD
+- **Niet op een echte iPad getest.** Na te lopen: tikken op de toetsen (snel typen, geen zoom bij dubbeltik),
+  dat er geen iOS-toetsenbord verschijnt, en hoe het werkt met een Bluetooth-toetsenbord.
+- Wat ouder: iOS-audio-ontgrendeling, sessieKlaar na 15 min, beginscherm-app.
+
+### VOLGENDE STAP
+Tims reactie van de iPad afwachten. `cd /Users/timbo/Projects/kes && git log --oneline -3`
+
 ## Sessie 23-11-2026 (handoff, context 40%)
 
 ### KLAAR

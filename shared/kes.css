@@ -100,7 +100,7 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 
 /* ---------- spelscherm ---------- */
 .game { height: 100dvh; display: flex; flex-direction: column; }
-.game-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px 6px; }
+.game-head { display: flex; align-items: center; gap: 10px; padding: max(10px, env(safe-area-inset-top)) 12px 6px; }
 .game-head .title { font-weight: 800; font-size: 18px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dots { display: flex; gap: 4px; flex: 2; max-width: 340px; }
 .dots i { flex: 1; height: 10px; border-radius: 99px; background: var(--sky2); }
@@ -199,22 +199,71 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .toggle input { width: 24px; height: 24px; }
 
 /* ---------- toets ---------- */
-.toets { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
-@media (min-width: 900px) and (min-aspect-ratio: 5/4) { .toets { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; } .toets .mapbox { position: sticky; top: 10px; } }
-.toets .mapbox { aspect-ratio: 1000 / 925; flex: none; }
-.sheet { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px; display: grid; grid-template-columns: 1fr; gap: 6px; }
+.toets-uitleg { font-size: 17px; font-weight: 700; color: var(--ink-soft); flex: none; }
+.sheet { display: grid; grid-template-columns: 1fr; gap: 4px; align-content: start; }
 @media (min-width: 640px) and (max-aspect-ratio: 5/4) { .sheet { grid-template-columns: 1fr 1fr; column-gap: 18px; } }
-.sheet .line { display: flex; align-items: center; gap: 8px; }
-.sheet .line label { width: 34px; text-align: right; font-weight: 800; font-size: 18px; flex: none; }
-.sheet .line input {
-  flex: 1; min-width: 0; height: 46px; border: 0; border-bottom: 3px solid var(--line); border-radius: 0;
-  font: inherit; font-size: 21px; font-weight: 700; padding: 0 6px; background: transparent; color: var(--ink);
-}
-.sheet .line input:focus { outline: none; border-bottom-color: var(--blue); background: #f3f8ff; }
-.sheet .line.good input { border-bottom-color: var(--green); background: var(--green-soft); }
-.sheet .line.bad input { border-bottom-color: var(--red); background: var(--red-soft); text-decoration: line-through; }
-.sheet .fix { margin: 2px 0 4px 42px; font-size: 16px; color: var(--red); font-weight: 700; }
+.sheet .btn, .sheet .result { grid-column: 1 / -1; }
+.sheet .line { display: flex; align-items: center; gap: 8px; border-radius: 12px; padding: 0 6px 0 0; cursor: pointer; }
+.sheet .line .nr { width: 40px; height: 34px; display: grid; place-items: center; font-weight: 800; font-size: 18px; flex: none; border-radius: 99px; }
+.sheet .line.active { background: #fff4e8; box-shadow: inset 0 0 0 3px var(--orange); }
+.sheet .line.active .nr { background: var(--orange); color: #fff; }
+.sheet .line.good .kfield { border-bottom-color: var(--green); background: var(--green-soft); }
+.sheet .line.bad .kfield { border-bottom-color: var(--red); background: var(--red-soft); }
+.sheet .line.bad .ktxt { text-decoration: line-through; }
+.sheet .fix { margin: 2px 0 4px 48px; font-size: 16px; color: var(--red); font-weight: 700; }
 .sheet .group { grid-column: 1 / -1; font-weight: 800; color: var(--ink-soft); margin-top: 6px; font-size: 15px; text-transform: uppercase; letter-spacing: 1px; }
+.btn.wiggle { animation: wiggle 0.5s ease-in-out 2; }
+@keyframes wiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-2deg) scale(1.03); } 75% { transform: rotate(2deg) scale(1.03); } }
+.map .bubble { fill: var(--orange); stroke: #fff; stroke-width: 4; }
+.map .bubble-t { font: 900 26px var(--font); fill: #fff; text-anchor: middle; pointer-events: none; }
+
+/* ---------- invulveld + eigen toetsenbord ---------- */
+.kfield { display: flex; align-items: center; min-width: 0; white-space: pre; overflow: hidden; cursor: text; color: var(--ink); font-weight: 700; }
+.kfield .kph { color: #9aa5ba; font-weight: 600; }
+.kfield.filled .kph { display: none; }
+.kfield .kcaret { display: none; width: 3px; height: 1.1em; margin: 0 1px; background: var(--blue); border-radius: 2px; animation: blink 1s steps(1) infinite; flex: none; }
+.kfield.on:not(.ro) .kcaret { display: block; }
+@keyframes blink { 50% { opacity: 0; } }
+.write .kfield { width: 100%; height: 68px; border-radius: 16px; border: 3px solid var(--line); padding: 0 16px; font-size: 28px; background: #fbfdff; }
+.write .kfield.on { border-color: var(--blue); }
+.write .kfield.good { border-color: var(--green); background: var(--green-soft); }
+.write .kfield.bad { border-color: var(--red); background: var(--red-soft); }
+.sheet .kfield { flex: 1; height: 46px; border-bottom: 3px solid var(--line); padding: 0 6px; font-size: 21px; }
+.sheet .kfield.on { border-bottom-color: var(--blue); }
+
+.kb { flex: none; display: grid; gap: 6px; padding: 8px; margin: 0 -8px -6px; background: #dfe7f2; border-radius: 16px; user-select: none; -webkit-user-select: none; }
+.kb-row { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; }
+.key {
+  height: clamp(44px, 6.8vh, 60px); border: 0; border-radius: 10px; background: #fff; box-shadow: 0 2px 0 #b7c3d6;
+  font-size: 24px; font-weight: 700; padding: 0; touch-action: manipulation; -webkit-user-select: none;
+}
+.key:active { background: var(--sky2); transform: translateY(2px); box-shadow: none; }
+.key.mod { background: #c9d4e4; font-size: 22px; }
+.key.shift.on { background: var(--blue); color: #fff; }
+.key.space { font-size: 17px; color: var(--ink-soft); }
+.key.enter { background: var(--green); color: #fff; font-size: 19px; font-weight: 800; box-shadow: 0 2px 0 #17803f; }
+
+/* paneel met toetsenbord: het toetsenbord staat vast onderaan, de inhoud erboven scrollt */
+.panel.with-kb { overflow: hidden; }
+.panel-scroll { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; min-height: 0; flex: 1; }
+.with-kb .sheet { overflow-y: auto; min-height: 0; flex: 1; -webkit-overflow-scrolling: touch; }
+@media (min-aspect-ratio: 5/4) and (min-width: 900px) {
+  .game-body.kb-mode .panel { width: clamp(440px, 46vw, 620px); height: 100%; }
+}
+@media not ((min-aspect-ratio: 5/4) and (min-width: 900px)) {
+  .game-body.kb-mode .mapbox { order: -1; }
+  .panel-scroll { max-height: 32vh; flex: none; }
+  .with-kb .sheet { max-height: 24vh; flex: none; }
+}
+@media (max-width: 700px) { /* telefoon: alles op één scherm, de kaart krimpt mee */
+  .game-body.kb-mode { overflow: hidden; }
+  .game-body.kb-mode .mapbox { flex: 1; aspect-ratio: auto; min-height: 160px; }
+  .with-kb .sheet { max-height: 22vh; }
+  .panel-scroll { max-height: 30vh; }
+  .toets-uitleg { font-size: 15px; }
+  .key { height: clamp(40px, 5.6vh, 52px); font-size: 20px; }
+  .kb { gap: 5px; padding: 6px; } .kb-row { gap: 4px; }
+}
 
 /* ---------- uitslag ---------- */
 .result { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 24px 16px; }

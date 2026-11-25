@@ -58,6 +58,78 @@
   const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const kind = (it) => it.type || "plaats";
   const answers = (it) => [it.name].concat(it.ook || []);
+
+  /* ================= eigen toetsenbord =================
+     Het iPad-toetsenbord duwt de pagina weg en bedekt de halve kaart. Daarom typ je in de
+     oefeningen op een toetsenbord in de app. Een los (bluetooth-)toetsenbord werkt ook. */
+  const KB = { target: null, shift: false, paint: null };
+  function kField(label) {
+    const txt = h("span", { class: "ktxt" }), caret = h("span", { class: "kcaret" }), ph = h("span", { class: "kph" });
+    const el = h("div", { class: "kfield", role: "textbox", "aria-label": label || "Antwoord" }, txt, caret, ph);
+    let value = "", cls = "", ro = false;
+    const paint = () => { el.className = "kfield" + (cls ? " " + cls : "") + (ro ? " ro" : "") + (KB.target === f ? " on" : ""); };
+    const f = {
+      el, onenter: null, oninput: null, onfocus: null,
+      get value() { return value; },
+      set value(v) { value = v || ""; txt.textContent = value; el.classList.toggle("filled", !!value); },
+      get placeholder() { return ph.textContent; }, set placeholder(v) { ph.textContent = v || ""; },
+      get className() { return cls; }, set className(v) { cls = v || ""; paint(); el.classList.toggle("filled", !!value); },
+      get readOnly() { return ro; }, set readOnly(v) { ro = !!v; paint(); },
+      focus() {
+        const prev = KB.target; KB.target = f;
+        if (prev && prev !== f && prev.repaint) prev.repaint();
+        paint(); el.classList.toggle("filled", !!value);
+        if (f.onfocus && prev !== f) f.onfocus();
+      },
+      repaint() { paint(); el.classList.toggle("filled", !!value); },
+    };
+    el.addEventListener("pointerdown", (e) => { e.preventDefault(); if (!ro) f.focus(); });
+    return f;
+  }
+  function kbType(key) {
+    const t = KB.target;
+    if (!t || !t.el.isConnected) return;
+    if (key === "Enter") { if (t.onenter) t.onenter(); return; }
+    if (t.readOnly) return;
+    if (key === "Backspace") t.value = t.value.slice(0, -1);
+    else if (t.value.length < 40) t.value += key;
+    if (t.oninput) t.oninput();
+  }
+  function setShift(on) { KB.shift = on; if (KB.paint) KB.paint(); }
+  document.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return; // bv. 'Wie speelt er?'
+    if (!KB.target || !KB.target.el.isConnected) return;
+    if (ae && ae.tagName === "BUTTON" && (e.key === "Enter" || e.key === " ")) return; // die knop handelt het af
+    if (e.key === "Enter" || e.key === "Backspace" || e.key.length === 1) {
+      e.preventDefault(); kbType(e.key);
+      if (e.key.length === 1 && KB.shift) setShift(false);
+    }
+  });
+  function keyboard(enterLabel) {
+    const keys = [];
+    const key = (label, cls, onpress, span) => {
+      const b = h("button", { type: "button", tabindex: "-1", class: "key" + (cls ? " " + cls : ""), style: span ? `grid-column: span ${span}` : null }, label);
+      b.addEventListener("pointerdown", (e) => e.preventDefault()); // nooit de focus pakken
+      b.addEventListener("click", onpress);
+      return b;
+    };
+    const letter = (c) => { const b = key(c, "", () => { kbType(KB.shift ? c.toUpperCase() : c); if (KB.shift) setShift(false); }); b.dataset.c = c; keys.push(b); return b; };
+    const shiftKey = key("⇧", "mod shift", () => setShift(!KB.shift), 2);
+    shiftKey.setAttribute("aria-label", "Hoofdletter");
+    const back = key("⌫", "mod", () => kbType("Backspace")); back.setAttribute("aria-label", "Wissen");
+    const enter = key(enterLabel || "Klaar ↵", "enter", () => kbType("Enter"), 4);
+    const row = (...k) => h("div", { class: "kb-row" }, ...k);
+    const el = h("div", { class: "kb", role: "group", "aria-label": "Toetsenbord" },
+      row(..."qwertyuiop".split("").map(letter)),
+      row(..."asdfghjkl".split("").map(letter), back),
+      row(shiftKey, ..."zxcvbnm".split("").map(letter), key("-", "", () => kbType("-"))),
+      row(key("spatie", "space", () => kbType(" "), 6), enter));
+    KB.paint = () => { keys.forEach((b) => (b.textContent = KB.shift ? b.dataset.c.toUpperCase() : b.dataset.c)); shiftKey.classList.toggle("on", KB.shift); };
+    setShift(false);
+    return { el, setEnter(label) { enter.textContent = label; } };
+  }
   const esc = (t) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const spelHTML = (it) => esc(it.spel || it.name).replace(/\[([^\]]*)\]/g, "<mark>$1</mark>");
   const deze = (it) => ({ plaats: "deze plaats", kanaal: "dit kanaal", rug: "deze zandrug" }[kind(it)]);
@@ -187,7 +259,24 @@
     const namesG = s("g", {}); svg.append(namesG);
     host.append(svg);
 
+    // Inzoomen op de les-provincie plus alle plekken: geen ruimte verspillen aan de buren.
+    let VB = { x: 0, y: 0, w: M.width, h: M.height };
+    try {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      const add = (b) => { x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.width); y1 = Math.max(y1, b.y + b.height); };
+      svg.querySelectorAll(".prov.focus, .canal, .ridge").forEach((el) => add(el.getBBox()));
+      Object.values(M.points).forEach(([x, y]) => add({ x, y, width: 0, height: 0 }));
+      x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(M.width, x1); y1 = Math.min(M.height, y1);
+      if (x1 - x0 > 100 && y1 - y0 > 100) {
+        const pad = 0.06 * Math.max(x1 - x0, y1 - y0);
+        VB = { x: Math.max(0, x0 - pad), y: Math.max(0, y0 - pad), w: 0, h: 0 };
+        VB.w = Math.min(M.width, x1 + pad) - VB.x; VB.h = Math.min(M.height, y1 + pad) - VB.y;
+        svg.setAttribute("viewBox", `${VB.x} ${VB.y} ${VB.w} ${VB.h}`);
+      }
+    } catch (e) {}
+
     const api = {
+      vb: VB,
       svg,
       showRidge(on) { ridgeG.style.display = on ? "" : "none"; },
       clear() { over.replaceChildren(); hlUnder.replaceChildren(); namesG.replaceChildren(); },
@@ -206,13 +295,20 @@
         const t = s("text", { class: "name " + (cls || "") });
         const isPt = !!GEOM[id].pt && !(M.tags && M.tags[id]);
         if (isPt) {
-          const right = x > M.width - 230;
+          const right = x > VB.x + VB.w - 230;
           t.setAttribute("x", right ? x - 18 : x + 18);
           t.setAttribute("y", y - 14);
           t.setAttribute("text-anchor", right ? "end" : "start");
         } else { t.setAttribute("x", x); t.setAttribute("y", y); t.setAttribute("text-anchor", "middle"); }
         t.textContent = text;
         namesG.append(t);
+      },
+      bubble(id, text) { // groot oranje nummer op de plek waar je nu mee bezig bent
+        const [x, y] = anchor(id);
+        const isPt = !!GEOM[id].pt && !(M.tags && M.tags[id]);
+        const cx = isPt ? x - 4 : x, cy = isPt ? y - 46 : y;
+        over.append(s("circle", { cx, cy, r: 26, class: "bubble" }));
+        const t = s("text", { x: cx, y: cy + 9, class: "bubble-t" }); t.textContent = text; over.append(t);
       },
       tags(on) {
         tagsG.replaceChildren();
@@ -706,20 +802,23 @@
       schrijf(it, done, next) {
         if (kind(it) === "rug") map.showRidge(true);
         map.mark(it.id, "focus-c");
-        // Eén invoerveld voor de hele ronde: zo blijft het iPad-toetsenbord open tussen de vragen.
+        // Eén veld en één toetsenbord voor de hele ronde.
         if (!W) {
+          const kb = keyboard("Klaar ↵");
           W = {
             q: h("div", { class: "q" }),
-            input: h("input", { type: "text", autocapitalize: "off", autocorrect: "off", autocomplete: "off", spellcheck: "false", enterkeyhint: "done", name: "search-antwoord", "aria-label": "Antwoord", "data-1p-ignore": "true", "data-lpignore": "true", "data-form-type": "other" }),
-            okBtn: h("button", { class: "btn green" }, "Klaar"),
+            input: kField("Antwoord"),
             hintBtn: h("button", { class: "btn small ghost" }, "💡 Hint"),
             hintLine: h("div", { class: "hintline hidden" }),
             fb: h("div", {}),
           };
-          ui.panel.replaceChildren(h("div", { class: "prompt" }, W.q), h("div", { class: "write" }, W.input, W.okBtn),
-            h("div", { style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap" }, W.hintBtn, W.hintLine), W.fb);
+          ui.panel.classList.add("with-kb"); ui.panel.parentNode.classList.add("kb-mode");
+          ui.panel.replaceChildren(
+            h("div", { class: "panel-scroll" }, h("div", { class: "prompt" }, W.q), h("div", { class: "write" }, W.input.el),
+              h("div", { style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap" }, W.hintBtn, W.hintLine), W.fb),
+            kb.el);
         }
-        const { input, okBtn, hintBtn, hintLine, fb } = W;
+        const { input, hintBtn, hintLine, fb } = W;
         W.q.textContent = `Hoe heet ${deze(it)}? Schrijf het goed!`;
         input.value = ""; input.className = ""; input.readOnly = false; input.placeholder = "Typ het hier…";
         hintLine.classList.add("hidden"); hintLine.textContent = ""; hintBtn.disabled = false; fb.replaceChildren();
@@ -770,8 +869,7 @@
           say(it);
           phase = "copy"; input.value = ""; input.className = ""; input.placeholder = it.name; input.focus();
         };
-        okBtn.onclick = submit;
-        input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } };
+        input.onenter = submit;
         input.focus();
       },
     };
@@ -782,37 +880,63 @@
   /* ---------- 6. oefentoets ---------- */
   function toets() {
     stopSpeech();
-    const mapbox = h("div", { class: "mapbox" });
+    const ui = gameShell("📝 Oefentoets " + L.region);
+    ui.dots.remove();
+    ui.panel.classList.add("with-kb", "toets-panel"); ui.panel.parentNode.classList.add("kb-mode");
+    const map = createMap(ui.mapbox, { ridge: false, tags: true });
+    const kb = keyboard("Volgende ↵");
     const sheet = h("div", { class: "sheet" });
     const rows = [];
-    const order = ITEMS.slice(); // zoals op het werkblad
-    let map;
+    let active = null, nagekeken = false;
     const groups = { rug: "Gebied", plaats: "Plaatsen", kanaal: "Kanalen" };
     let lastGroup = null;
-    order.forEach((it) => {
+    const teller = () => { ui.streak.textContent = `✏️ ${rows.filter((r) => norm(r.input.value)).length}/${rows.length}`; };
+    function activate(row) {
+      if (nagekeken) return;
+      active = row;
+      rows.forEach((r) => r.line.classList.toggle("active", r === row));
+      map.clear(); map.mark(row.it.id, "focus-c"); map.bubble(row.it.id, row.it.nr);
+      if (KB.target !== row.input) row.input.focus();
+      row.line.scrollIntoView({ block: "nearest" });
+    }
+    function volgende() {
+      const i = rows.indexOf(active);
+      const leeg = rows.slice(i + 1).concat(rows.slice(0, i)).find((r) => !norm(r.input.value));
+      if (leeg) return activate(leeg);
+      // alles ingevuld: wijs de nakijk-knop aan
+      doneBtn.scrollIntoView({ block: "nearest" }); doneBtn.classList.remove("wiggle"); void doneBtn.offsetWidth; doneBtn.classList.add("wiggle");
+    }
+    ITEMS.forEach((it) => { // zoals op het werkblad
       if (kind(it) !== lastGroup) { lastGroup = kind(it); sheet.append(h("div", { class: "group" }, groups[lastGroup])); }
-      const input = h("input", { type: "text", autocapitalize: "off", autocorrect: "off", autocomplete: "off", spellcheck: "false", enterkeyhint: "next", "data-1p-ignore": "true", "data-lpignore": "true", "data-form-type": "other", name: "search-t" + it.nr, id: "search-t-" + it.id, "aria-label": "Nummer " + it.nr });
-      const line = h("div", { class: "line" }, h("label", { for: "search-t-" + it.id }, it.nr + "."), input);
+      const input = kField("Nummer " + it.nr);
+      const line = h("div", { class: "line" }, h("span", { class: "nr" }, it.nr + "."), input.el);
       const fix = h("div", { class: "fix hidden" });
-      input.addEventListener("focus", () => { map.clear(); map.mark(it.id, "focus-c"); });
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") { e.preventDefault(); const i = rows.findIndex((r) => r.it === it); if (rows[i + 1]) rows[i + 1].input.focus(); else input.blur(); }
-      });
-      rows.push({ it, input, line, fix });
+      const row = { it, input, line, fix };
+      input.onfocus = () => activate(row);
+      input.onenter = volgende;
+      input.oninput = teller;
+      line.addEventListener("pointerdown", (e) => { if (!nagekeken && (e.target === line || e.target.classList.contains("nr"))) { e.preventDefault(); activate(row); } });
+      rows.push(row);
       sheet.append(h("div", { class: "cell" }, line, fix));
     });
-    const doneBtn = h("button", { class: "btn green", style: "grid-column:1/-1;margin-top:10px" }, "Klaar! Nakijken");
+    const doneBtn = h("button", { class: "btn green", style: "margin-top:10px" }, "Klaar! Nakijken");
     sheet.append(doneBtn);
-    app.replaceChildren(h("div", { class: "wrap" },
-      h("div", { class: "topbar" }, h("button", { class: "icon-btn", "aria-label": "Terug", onclick: home }, "←"), h("div", { style: "font-weight:800;font-size:20px;flex:1" }, sessieTitel("📝 Oefentoets " + L.region))),
-      h("p", { style: "margin:6px 0 14px;color:var(--ink-soft);font-size:17px" }, "Schrijf bij elk nummer en elke letter de goede naam. Let op hoofdletters! Geen hints, net als op school."),
-      h("div", { class: "toets" }, mapbox, sheet)));
-    map = createMap(mapbox, { ridge: false, tags: true });
+    ui.panel.append(h("div", { class: "toets-uitleg" }, "Tik een nummer aan en schrijf de naam. Let op hoofdletters!"), sheet, kb.el);
+    map.onTap((p) => {
+      if (nagekeken) return;
+      const near = map.nearest(p, ITEMS.map((it) => it.id));
+      if (near.d < map.pxToUnits(40)) activate(rows.find((r) => r.it.id === near.id));
+    });
+    teller();
+    activate(rows[0]);
+
     doneBtn.onclick = () => {
+      nagekeken = true; KB.target = null; kb.el.remove(); ui.streak.textContent = "";
+      ui.panel.querySelector(".toets-uitleg").remove();
       let good = 0;
       const wrongs = [];
       rows.forEach(({ it, input, line, fix }) => {
-        input.readOnly = true;
+        input.readOnly = true; line.classList.remove("active");
         const r = check(it, input.value);
         const ok = r.res === "good";
         line.classList.add(ok ? "good" : "bad");
@@ -830,10 +954,12 @@
       map.clear(); wrongs.forEach((it) => { map.mark(it.id, "bad-c"); map.name(it.id, it.name, "bad"); });
       if (good / rows.length >= 0.8) { confetti(); beep("win"); }
       cheer(good === rows.length ? "toets10" : good / rows.length >= 0.7 ? "toetsGoed" : "toetsOefen");
-      doneBtn.replaceWith(h("div", { class: "result", style: "grid-column:1/-1;padding:10px 0" },
+      doneBtn.remove();
+      sheet.prepend(h("div", { class: "result", style: "padding:6px 0 14px" },
         h("div", {}, `${good} van de ${rows.length} goed`), h("div", { class: "grade" }, grade),
         h("div", {}, good === rows.length ? "Een tien! Je bent klaar voor de toets! 🏆" : good / rows.length >= 0.8 ? "Heel goed! De rode namen nog even oefenen." : "Oefen de rode namen nog met Schrijf het op en probeer het dan opnieuw."),
         eindKnoppen(toets, "Nieuwe oefentoets")));
+      sheet.scrollTop = 0;
     };
   }
 
