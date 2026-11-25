@@ -19,6 +19,9 @@ wisselen maakte niet duidelijk welk nummer je invult.
 - Kaart zoomt in op Drenthe plus alle plekken (viewBox). Gemeten breedte van Drenthe op 1180×820:
   toets 453→540px, schrijf met iOS-toetsenbord (gesimuleerd 1180×420) 299→540px.
 - Tikvoorrang (Ontdekken) na de zoom opnieuw getest: 6 plaatsen × 0/10/20px × 4 richtingen = 0 fouten.
+- Een regel kiezen gebeurt pas bij 'click', niet bij 'pointerdown', zodat scrollen door de lijst geen regel selecteert (alleen pointerdown → actieve regel blijft A.).
+- 'Waar ligt het' na de zoom: 10/10 juiste tikken goed gerekend. Ontdekken: geen ringen afgesneden.
+- Foto's niet publiek: `git ls-files | grep -i heic` leeg, live IMG_0694.HEIC → 404.
 - Staand (820×1180) en telefoon (390×844): alles past op één scherm, en het toetsenbord staat onderaan in beeld.
 
 ### ONGEVERIFIEERD
@@ -52,8 +55,7 @@ Tims reactie van de iPad afwachten. `cd /Users/timbo/Projects/kes && git log --o
 
 ### ONGEVERIFIEERD
 - **Niets getest op een echte iPad of iPhone.** Alleen Chromium op die schermformaten.
-  Niet getest: iOS-audio-ontgrendeling, of het schermtoetsenbord openblijft tussen vragen in
-  'Schrijf het op', of `data-1p-ignore` het 1Password-icoon echt weghaalt, beginscherm-app.
+  (Toetsenbord-/1Password-punten vervallen: zie sessie 25-11.)
 - sessieKlaar na 15 minuten (afbreken op tijd) niet getest, alleen afronden na alle opdrachten.
 - Uitspraak van de gecorrigeerde feitjes (17 nieuwe 'feit-'-opnames) niet door Tim beluisterd.
 

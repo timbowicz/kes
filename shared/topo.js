@@ -83,7 +83,8 @@
       },
       repaint() { paint(); el.classList.toggle("filled", !!value); },
     };
-    el.addEventListener("pointerdown", (e) => { e.preventDefault(); if (!ro) f.focus(); });
+    // Pas bij 'click' activeren: een veeg om de lijst te scrollen mag geen regel kiezen.
+    el.addEventListener("click", () => { if (!ro) f.focus(); });
     return f;
   }
   function kbType(key) {
@@ -915,7 +916,7 @@
       input.onfocus = () => activate(row);
       input.onenter = volgende;
       input.oninput = teller;
-      line.addEventListener("pointerdown", (e) => { if (!nagekeken && (e.target === line || e.target.classList.contains("nr"))) { e.preventDefault(); activate(row); } });
+      line.addEventListener("click", (e) => { if (!nagekeken && (e.target === line || e.target.classList.contains("nr"))) activate(row); });
       rows.push(row);
       sheet.append(h("div", { class: "cell" }, line, fix));
     });
