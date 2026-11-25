@@ -342,6 +342,8 @@
         namesG.append(t);
       },
       bubble(id, text) { // groot oranje nummer op de plek waar je nu mee bezig bent
+        // het gewone nummer van die plek even weg, anders staat het er dubbel (A + A, 1 + 1)
+        tagsG.querySelectorAll(".tag").forEach((t) => t.classList.toggle("hidden", t.dataset.id === id));
         const [x, y] = anchor(id);
         const isPt = !!GEOM[id].pt && !(M.tags && M.tags[id]);
         const cx = isPt ? x - 4 : x, cy = isPt ? y - 46 : y;
@@ -354,7 +356,7 @@
         ITEMS.forEach((it) => {
           let [x, y] = anchor(it.id);
           const isPt = !!GEOM[it.id].pt;
-          const t = s("text", { x: isPt ? x - 4 : x, y: isPt ? y - 16 : y, class: "tag", "text-anchor": "middle" });
+          const t = s("text", { x: isPt ? x - 4 : x, y: isPt ? y - 16 : y, class: "tag", "text-anchor": "middle", "data-id": it.id });
           t.textContent = it.nr; tagsG.append(t);
         });
       },
@@ -961,7 +963,8 @@
       if (nagekeken) return;
       active = row;
       rows.forEach((r) => r.line.classList.toggle("active", r === row));
-      map.clear(); map.mark(row.it.id, "focus-c"); map.bubble(row.it.id, row.it.nr); map.show(row.it.id);
+      map.clear(); map.mark(row.it.id, "focus-c"); map.bubble(row.it.id, row.it.nr);
+      map.zoomTo(row.it.id); // net als bij Schrijf het op: met het toetsenbord open is de kaart klein, dus zoom in op de plek
       if (document.activeElement !== row.input.el) row.input.focus();
       row.line.scrollIntoView({ block: "nearest" });
     }
@@ -1018,7 +1021,7 @@
       });
       const grade = Math.max(1, Math.round((1 + (9 * good) / rows.length) * 10) / 10).toFixed(1).replace(".", ",");
       P.tests.push({ when: new Date().toISOString(), good, total: rows.length, grade }); save();
-      map.clear(); wrongs.forEach((it) => { map.mark(it.id, "bad-c"); map.name(it.id, it.name, "bad"); });
+      map.clear(); map.resetView(); map.tags(true); wrongs.forEach((it) => { map.mark(it.id, "bad-c"); map.name(it.id, it.name, "bad"); });
       if (good / rows.length >= 0.8) { confetti(); beep("win"); }
       cheer(good === rows.length ? "toets10" : good / rows.length >= 0.7 ? "toetsGoed" : "toetsOefen");
       doneBtn.remove();

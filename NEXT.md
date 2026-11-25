@@ -1,5 +1,20 @@
 # NEXT — Kes leert
 
+## Sessie 25-11-2026 avond: oefentoets (iPad, IMG_0731-0734, niet in repo)
+
+### KLAAR (code, `node --check` ok)
+- Toets zoomt bij elke actieve regel in op die plek (`map.zoomTo`, net als Schrijf het op). Na nakijken: hele kaart.
+- Dubbel nummer weg: `bubble()` verbergt het vaste kaartnummer (`.tag[data-id]`) van de actieve plek. Na nakijken komen alle nummers terug.
+- Cache-versie `v=202611251800`.
+
+### ONGEVERIFIEERD
+- **Niet in een browser getest**: lokale webserver werd door de auto-mode geweigerd, Playwright blokkeert file://.
+  Tim: `! cd /Users/timbo/Projects/kes && python3 -m http.server 8765` en dan op localhost testen, of direct op de iPad.
+- Zoomfactor 0.6 van de hele kaart: of dat op de iPad prettig is of te ver ingezoomd.
+
+### VOLGENDE STAP
+Tim test de oefentoets op de iPad. `cd /Users/timbo/Projects/kes && git log --oneline -3`
+
 ## Sessie 25-11-2026 middag: feedback Tim (iPad, screenshots IMG_0728-0730, niet in repo)
 
 ### KLAAR (Playwright Chromium, file://, 0 page-errors)
