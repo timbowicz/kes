@@ -1,32 +1,32 @@
 # NEXT — Kes leert
 
-## Sessie 25-11-2026: eigen toetsenbord (n.a.v. iPad-foto Tim 24-11)
+## Sessie 25-11-2026: toets/schrijven met iPad-toetsenbord (n.a.v. foto Tim 24-11)
 
 ### Probleem (foto)
-Oefentoets op iPad liggend: het iOS-toetsenbord bedekte de onderste helft en schoof de pagina op.
-Daardoor viel de kaart deels onder de statusbalk en werd hij klein (Drenthe ~300px). Tussen velden
-wisselen maakte niet duidelijk welk nummer je invult.
+Oefentoets, iPad liggend: het iOS-toetsenbord duwde de pagina omhoog, waardoor de kaart deels onder de statusbalk viel en klein werd.
+Bij wisselen van veld was niet duidelijk welk nummer je invulde.
+
+### Besluit
+Eerst een eigen toetsenbord in de app gebouwd (commit f53d69c). Tim wil dat **niet**: het standaardtoetsenbord van iOS/Android
+is herkenbaar. Dat is teruggedraaid. Er staan weer echte `<input>`s in, via `kField()` in topo.js.
+**Geen eigen toetsenbord meer voorstellen.**
 
 ### KLAAR (Playwright Chromium, file://, 0 page-errors)
-- Toets en 'Schrijf het op' typen nu op een **toetsenbord in de app** (`keyboard()` + `kField()` in topo.js).
-  Er zijn geen `<input>`s meer in die schermen (`document.activeElement` = BODY tijdens spelen), dus iOS
-  opent zijn eigen toetsenbord niet en Safari-autofill/1Password zit er niet meer tussen.
-  Shift werkt één keer per druk en hoofdletters gaan nooit automatisch (de hoofdletter blijft dus iets wat Kes zelf moet doen).
-  Een los toetsenbord werkt via één `keydown`-listener op het document.
-- Oefentoets staat nu in een scherm met vaste hoogte: de kaart staat links op volle hoogte, rechts scrollt de lijst en daaronder staat het toetsenbord.
-  De actieve regel krijgt een oranje rand en het nummer op de kaart een groot oranje bolletje.
-  Via een kaartnummer tikken kies je die regel. Enter gaat naar het volgende lege veld; is alles ingevuld, dan wiebelt 'Nakijken'. Teller ✏️ x/20 bovenin.
-- Kaart zoomt in op Drenthe plus alle plekken (viewBox). Gemeten breedte van Drenthe op 1180×820:
-  toets 453→540px, schrijf met iOS-toetsenbord (gesimuleerd 1180×420) 299→540px.
-- Tikvoorrang (Ontdekken) na de zoom opnieuw getest: 6 plaatsen × 0/10/20px × 4 richtingen = 0 fouten.
-- Een regel kiezen gebeurt pas bij 'click', niet bij 'pointerdown', zodat scrollen door de lijst geen regel selecteert (alleen pointerdown → actieve regel blijft A.).
-- 'Waar ligt het' na de zoom: 10/10 juiste tikken goed gerekend. Ontdekken: geen ringen afgesneden.
+- Spelschermen (`.game`) volgen het zichtbare deel: `position: fixed; top: var(--vv-top); height: var(--vv-h)`, gezet vanuit
+  `visualViewport` (resize/scroll). Komt het toetsenbord op, dan krimpen kaart en lijst mee in plaats van weg te schuiven.
+  `html.kb-open` (zichtbaar deel >120px kleiner dan het maximum) maakt de kop compacter en verbergt de uitlegregel van de toets.
+- Oefentoets in dat scherm: de kaart links, de lijst rechts die op zichzelf scrollt. De actieve regel krijgt een oranje rand,
+  op de kaart staat een groot oranje bolletje met het nummer, en via een kaartnummer tikken kies je die regel.
+  Enter gaat naar het volgende lege veld. Is alles ingevuld, dan gaat het toetsenbord weg en wiebelt 'Nakijken'. Teller ✏️ x/20.
+- Kaart zoomt in op Drenthe plus alle plekken (viewBox), in alle oefeningen.
+  Drenthe-breedte, toets 1180×820: 453→632px. Met een gesimuleerd toetsenbord (1180×430) blijft de kaart helemaal in beeld: Drenthe 328px.
+- Na de zoom opnieuw getest: tikvoorrang in Ontdekken 0 fouten, 'Waar ligt het' 10/10 goed. Toets volledig ingevuld → 10,0.
 - Foto's niet publiek: `git ls-files | grep -i heic` leeg, live IMG_0694.HEIC → 404.
-- Staand (820×1180) en telefoon (390×844): alles past op één scherm, en het toetsenbord staat onderaan in beeld.
 
 ### ONGEVERIFIEERD
-- **Niet op een echte iPad getest.** Na te lopen: tikken op de toetsen (snel typen, geen zoom bij dubbeltik),
-  dat er geen iOS-toetsenbord verschijnt, en hoe het werkt met een Bluetooth-toetsenbord.
+- **Niet getest op een echte iPad.** Chromium kent geen schermtoetsenbord, daar is het alleen nagebootst door het venster lager te maken.
+  Na te lopen: of iOS-Safari de pagina toch nog verschuift (`--vv-top`), of het toetsenbord openblijft bij Enter naar het volgende veld,
+  en of het lukt om een kaartnummer aan te tikken terwijl het toetsenbord open is.
 - Wat ouder: iOS-audio-ontgrendeling, sessieKlaar na 15 min, beginscherm-app.
 
 ### VOLGENDE STAP

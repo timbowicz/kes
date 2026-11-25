@@ -209,7 +209,7 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .sheet .line.active .nr { background: var(--orange); color: #fff; }
 .sheet .line.good .kfield { border-bottom-color: var(--green); background: var(--green-soft); }
 .sheet .line.bad .kfield { border-bottom-color: var(--red); background: var(--red-soft); }
-.sheet .line.bad .ktxt { text-decoration: line-through; }
+.sheet .line.bad .kfield { text-decoration: line-through; }
 .sheet .fix { margin: 2px 0 4px 48px; font-size: 16px; color: var(--red); font-weight: 700; }
 .sheet .group { grid-column: 1 / -1; font-weight: 800; color: var(--ink-soft); margin-top: 6px; font-size: 15px; text-transform: uppercase; letter-spacing: 1px; }
 .btn.wiggle { animation: wiggle 0.5s ease-in-out 2; }
@@ -217,52 +217,40 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .map .bubble { fill: var(--orange); stroke: #fff; stroke-width: 4; }
 .map .bubble-t { font: 900 26px var(--font); fill: #fff; text-anchor: middle; pointer-events: none; }
 
-/* ---------- invulveld + eigen toetsenbord ---------- */
-.kfield { display: flex; align-items: center; min-width: 0; white-space: pre; overflow: hidden; cursor: text; color: var(--ink); font-weight: 700; }
-.kfield .kph { color: #9aa5ba; font-weight: 600; }
-.kfield.filled .kph { display: none; }
-.kfield .kcaret { display: none; width: 3px; height: 1.1em; margin: 0 1px; background: var(--blue); border-radius: 2px; animation: blink 1s steps(1) infinite; flex: none; }
-.kfield.on:not(.ro) .kcaret { display: block; }
-@keyframes blink { 50% { opacity: 0; } }
+/* ---------- invulveld (toetsenbord van het apparaat) ---------- */
+input.kfield { font: inherit; font-weight: 700; color: var(--ink); background: transparent; border: 0; border-radius: 0; outline: none; -webkit-appearance: none; appearance: none; min-width: 0; }
+input.kfield::placeholder { color: #9aa5ba; font-weight: 600; }
 .write .kfield { width: 100%; height: 68px; border-radius: 16px; border: 3px solid var(--line); padding: 0 16px; font-size: 28px; background: #fbfdff; }
-.write .kfield.on { border-color: var(--blue); }
+.write .kfield:focus { border-color: var(--blue); }
 .write .kfield.good { border-color: var(--green); background: var(--green-soft); }
 .write .kfield.bad { border-color: var(--red); background: var(--red-soft); }
 .sheet .kfield { flex: 1; height: 46px; border-bottom: 3px solid var(--line); padding: 0 6px; font-size: 21px; }
-.sheet .kfield.on { border-bottom-color: var(--blue); }
+.sheet .kfield:focus { border-bottom-color: var(--blue); }
 
-.kb { flex: none; display: grid; gap: 6px; padding: 8px; margin: 0 -8px -6px; background: #dfe7f2; border-radius: 16px; user-select: none; -webkit-user-select: none; }
-.kb-row { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; }
-.key {
-  height: clamp(44px, 6.8vh, 60px); border: 0; border-radius: 10px; background: #fff; box-shadow: 0 2px 0 #b7c3d6;
-  font-size: 24px; font-weight: 700; padding: 0; touch-action: manipulation; -webkit-user-select: none;
-}
-.key:active { background: var(--sky2); transform: translateY(2px); box-shadow: none; }
-.key.mod { background: #c9d4e4; font-size: 22px; }
-.key.shift.on { background: var(--blue); color: #fff; }
-.key.space { font-size: 17px; color: var(--ink-soft); }
-.key.enter { background: var(--green); color: #fff; font-size: 19px; font-weight: 800; box-shadow: 0 2px 0 #17803f; }
+/* spelscherm volgt het zichtbare deel van het scherm (krimpt als het toetsenbord opkomt) */
+.game { position: fixed; left: 0; right: 0; top: var(--vv-top, 0px); height: var(--vv-h, 100dvh); }
+html.kb-open .game-head { padding-top: 4px; padding-bottom: 4px; }
+html.kb-open .game-head .icon-btn { width: 40px; height: 40px; }
+html.kb-open .toets-uitleg { display: none; }
 
-/* paneel met toetsenbord: het toetsenbord staat vast onderaan, de inhoud erboven scrollt */
+/* paneel met invulveld: de inhoud scrollt binnen het paneel, de pagina zelf nooit */
 .panel.with-kb { overflow: hidden; }
 .panel-scroll { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; min-height: 0; flex: 1; }
 .with-kb .sheet { overflow-y: auto; min-height: 0; flex: 1; -webkit-overflow-scrolling: touch; }
 @media (min-aspect-ratio: 5/4) and (min-width: 900px) {
-  .game-body.kb-mode .panel { width: clamp(440px, 46vw, 620px); height: 100%; }
+  .game-body.kb-mode .panel { height: 100%; }
 }
 @media not ((min-aspect-ratio: 5/4) and (min-width: 900px)) {
   .game-body.kb-mode .mapbox { order: -1; }
-  .panel-scroll { max-height: 32vh; flex: none; }
-  .with-kb .sheet { max-height: 24vh; flex: none; }
+  .panel-scroll { max-height: calc(var(--vv-h, 100vh) * 0.32); flex: none; }
+  .with-kb .sheet { max-height: calc(var(--vv-h, 100vh) * 0.24); flex: none; }
 }
 @media (max-width: 700px) { /* telefoon: alles op één scherm, de kaart krimpt mee */
   .game-body.kb-mode { overflow: hidden; }
   .game-body.kb-mode .mapbox { flex: 1; aspect-ratio: auto; min-height: 160px; }
-  .with-kb .sheet { max-height: 22vh; }
-  .panel-scroll { max-height: 30vh; }
+  .with-kb .sheet { max-height: calc(var(--vv-h, 100vh) * 0.22); }
+  .panel-scroll { max-height: calc(var(--vv-h, 100vh) * 0.3); }
   .toets-uitleg { font-size: 15px; }
-  .key { height: clamp(40px, 5.6vh, 52px); font-size: 20px; }
-  .kb { gap: 5px; padding: 6px; } .kb-row { gap: 4px; }
 }
 
 /* ---------- uitslag ---------- */

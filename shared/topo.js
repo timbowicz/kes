@@ -59,78 +59,45 @@
   const kind = (it) => it.type || "plaats";
   const answers = (it) => [it.name].concat(it.ook || []);
 
-  /* ================= eigen toetsenbord =================
-     Het iPad-toetsenbord duwt de pagina weg en bedekt de halve kaart. Daarom typ je in de
-     oefeningen op een toetsenbord in de app. Een los (bluetooth-)toetsenbord werkt ook. */
-  const KB = { target: null, shift: false, paint: null };
-  function kField(label) {
-    const txt = h("span", { class: "ktxt" }), caret = h("span", { class: "kcaret" }), ph = h("span", { class: "kph" });
-    const el = h("div", { class: "kfield", role: "textbox", "aria-label": label || "Antwoord" }, txt, caret, ph);
-    let value = "", cls = "", ro = false;
-    const paint = () => { el.className = "kfield" + (cls ? " " + cls : "") + (ro ? " ro" : "") + (KB.target === f ? " on" : ""); };
+  /* ================= invulveld =================
+     Gewoon het toetsenbord van het apparaat (herkenbaar), met een klein laagje eromheen
+     zodat Enter, invoer en focus overal hetzelfde werken. */
+  function kField(label, opts) {
+    opts = opts || {};
+    const el = h("input", { type: "text", class: "kfield", autocapitalize: "off", autocorrect: "off", autocomplete: "off", spellcheck: "false",
+      enterkeyhint: opts.enter || "done", name: "search-" + (opts.id || "antwoord"), "aria-label": label || "Antwoord",
+      "data-1p-ignore": "true", "data-lpignore": "true", "data-form-type": "other" });
     const f = {
       el, onenter: null, oninput: null, onfocus: null,
-      get value() { return value; },
-      set value(v) { value = v || ""; txt.textContent = value; el.classList.toggle("filled", !!value); },
-      get placeholder() { return ph.textContent; }, set placeholder(v) { ph.textContent = v || ""; },
-      get className() { return cls; }, set className(v) { cls = v || ""; paint(); el.classList.toggle("filled", !!value); },
-      get readOnly() { return ro; }, set readOnly(v) { ro = !!v; paint(); },
-      focus() {
-        const prev = KB.target; KB.target = f;
-        if (prev && prev !== f && prev.repaint) prev.repaint();
-        paint(); el.classList.toggle("filled", !!value);
-        if (f.onfocus && prev !== f) f.onfocus();
-      },
-      repaint() { paint(); el.classList.toggle("filled", !!value); },
+      get value() { return el.value; }, set value(v) { el.value = v || ""; },
+      get placeholder() { return el.placeholder; }, set placeholder(v) { el.placeholder = v || ""; },
+      get className() { return el.className.replace(/^kfield ?/, ""); }, set className(v) { el.className = "kfield" + (v ? " " + v : ""); },
+      get readOnly() { return el.readOnly; }, set readOnly(v) { el.readOnly = !!v; },
+      focus() { el.focus({ preventScroll: true }); },
     };
-    // Pas bij 'click' activeren: een veeg om de lijst te scrollen mag geen regel kiezen.
-    el.addEventListener("click", () => { if (!ro) f.focus(); });
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); if (f.onenter) f.onenter(); } });
+    el.addEventListener("input", () => { if (f.oninput) f.oninput(); });
+    el.addEventListener("focus", () => { if (f.onfocus) f.onfocus(); });
     return f;
   }
-  function kbType(key) {
-    const t = KB.target;
-    if (!t || !t.el.isConnected) return;
-    if (key === "Enter") { if (t.onenter) t.onenter(); return; }
-    if (t.readOnly) return;
-    if (key === "Backspace") t.value = t.value.slice(0, -1);
-    else if (t.value.length < 40) t.value += key;
-    if (t.oninput) t.oninput();
-  }
-  function setShift(on) { KB.shift = on; if (KB.paint) KB.paint(); }
-  document.addEventListener("keydown", (e) => {
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-    const ae = document.activeElement;
-    if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return; // bv. 'Wie speelt er?'
-    if (!KB.target || !KB.target.el.isConnected) return;
-    if (ae && ae.tagName === "BUTTON" && (e.key === "Enter" || e.key === " ")) return; // die knop handelt het af
-    if (e.key === "Enter" || e.key === "Backspace" || e.key.length === 1) {
-      e.preventDefault(); kbType(e.key);
-      if (e.key.length === 1 && KB.shift) setShift(false);
+
+  /* Als het schermtoetsenbord opkomt, krimpt het zichtbare deel (visualViewport) en schuift iOS
+     de pagina op. Het spelscherm volgt daarom precies het zichtbare deel: kaart en lijst blijven in beeld. */
+  (function volgZichtbaarDeel() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const root = document.documentElement;
+    let basis = 0, breedte = 0;
+    function upd() {
+      if (Math.abs(vv.width - breedte) > 40) { basis = 0; breedte = vv.width; } // gedraaid
+      basis = Math.max(basis, vv.height);
+      root.style.setProperty("--vv-h", vv.height + "px");
+      root.style.setProperty("--vv-top", vv.offsetTop + "px");
+      root.classList.toggle("kb-open", vv.height < basis - 120);
     }
-  });
-  function keyboard(enterLabel) {
-    const keys = [];
-    const key = (label, cls, onpress, span) => {
-      const b = h("button", { type: "button", tabindex: "-1", class: "key" + (cls ? " " + cls : ""), style: span ? `grid-column: span ${span}` : null }, label);
-      b.addEventListener("pointerdown", (e) => e.preventDefault()); // nooit de focus pakken
-      b.addEventListener("click", onpress);
-      return b;
-    };
-    const letter = (c) => { const b = key(c, "", () => { kbType(KB.shift ? c.toUpperCase() : c); if (KB.shift) setShift(false); }); b.dataset.c = c; keys.push(b); return b; };
-    const shiftKey = key("⇧", "mod shift", () => setShift(!KB.shift), 2);
-    shiftKey.setAttribute("aria-label", "Hoofdletter");
-    const back = key("⌫", "mod", () => kbType("Backspace")); back.setAttribute("aria-label", "Wissen");
-    const enter = key(enterLabel || "Klaar ↵", "enter", () => kbType("Enter"), 4);
-    const row = (...k) => h("div", { class: "kb-row" }, ...k);
-    const el = h("div", { class: "kb", role: "group", "aria-label": "Toetsenbord" },
-      row(..."qwertyuiop".split("").map(letter)),
-      row(..."asdfghjkl".split("").map(letter), back),
-      row(shiftKey, ..."zxcvbnm".split("").map(letter), key("-", "", () => kbType("-"))),
-      row(key("spatie", "space", () => kbType(" "), 6), enter));
-    KB.paint = () => { keys.forEach((b) => (b.textContent = KB.shift ? b.dataset.c.toUpperCase() : b.dataset.c)); shiftKey.classList.toggle("on", KB.shift); };
-    setShift(false);
-    return { el, setEnter(label) { enter.textContent = label; } };
-  }
+    vv.addEventListener("resize", upd); vv.addEventListener("scroll", upd); upd();
+  })();
+
   const esc = (t) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const spelHTML = (it) => esc(it.spel || it.name).replace(/\[([^\]]*)\]/g, "<mark>$1</mark>");
   const deze = (it) => ({ plaats: "deze plaats", kanaal: "dit kanaal", rug: "deze zandrug" }[kind(it)]);
@@ -805,7 +772,6 @@
         map.mark(it.id, "focus-c");
         // Eén veld en één toetsenbord voor de hele ronde.
         if (!W) {
-          const kb = keyboard("Klaar ↵");
           W = {
             q: h("div", { class: "q" }),
             input: kField("Antwoord"),
@@ -816,8 +782,7 @@
           ui.panel.classList.add("with-kb"); ui.panel.parentNode.classList.add("kb-mode");
           ui.panel.replaceChildren(
             h("div", { class: "panel-scroll" }, h("div", { class: "prompt" }, W.q), h("div", { class: "write" }, W.input.el),
-              h("div", { style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap" }, W.hintBtn, W.hintLine), W.fb),
-            kb.el);
+              h("div", { style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap" }, W.hintBtn, W.hintLine), W.fb));
         }
         const { input, hintBtn, hintLine, fb } = W;
         W.q.textContent = `Hoe heet ${deze(it)}? Schrijf het goed!`;
@@ -885,7 +850,6 @@
     ui.dots.remove();
     ui.panel.classList.add("with-kb", "toets-panel"); ui.panel.parentNode.classList.add("kb-mode");
     const map = createMap(ui.mapbox, { ridge: false, tags: true });
-    const kb = keyboard("Volgende ↵");
     const sheet = h("div", { class: "sheet" });
     const rows = [];
     let active = null, nagekeken = false;
@@ -897,32 +861,33 @@
       active = row;
       rows.forEach((r) => r.line.classList.toggle("active", r === row));
       map.clear(); map.mark(row.it.id, "focus-c"); map.bubble(row.it.id, row.it.nr);
-      if (KB.target !== row.input) row.input.focus();
+      if (document.activeElement !== row.input.el) row.input.focus();
       row.line.scrollIntoView({ block: "nearest" });
     }
     function volgende() {
       const i = rows.indexOf(active);
       const leeg = rows.slice(i + 1).concat(rows.slice(0, i)).find((r) => !norm(r.input.value));
       if (leeg) return activate(leeg);
-      // alles ingevuld: wijs de nakijk-knop aan
+      // alles ingevuld: toetsenbord weg en wijs de nakijk-knop aan
+      active.input.el.blur();
       doneBtn.scrollIntoView({ block: "nearest" }); doneBtn.classList.remove("wiggle"); void doneBtn.offsetWidth; doneBtn.classList.add("wiggle");
     }
     ITEMS.forEach((it) => { // zoals op het werkblad
       if (kind(it) !== lastGroup) { lastGroup = kind(it); sheet.append(h("div", { class: "group" }, groups[lastGroup])); }
-      const input = kField("Nummer " + it.nr);
+      const input = kField("Nummer " + it.nr, { enter: "next", id: "t" + it.nr });
       const line = h("div", { class: "line" }, h("span", { class: "nr" }, it.nr + "."), input.el);
       const fix = h("div", { class: "fix hidden" });
       const row = { it, input, line, fix };
       input.onfocus = () => activate(row);
       input.onenter = volgende;
       input.oninput = teller;
-      line.addEventListener("click", (e) => { if (!nagekeken && (e.target === line || e.target.classList.contains("nr"))) activate(row); });
+      line.addEventListener("click", (e) => { if (!nagekeken && e.target !== input.el) activate(row); });
       rows.push(row);
       sheet.append(h("div", { class: "cell" }, line, fix));
     });
     const doneBtn = h("button", { class: "btn green", style: "margin-top:10px" }, "Klaar! Nakijken");
     sheet.append(doneBtn);
-    ui.panel.append(h("div", { class: "toets-uitleg" }, "Tik een nummer aan en schrijf de naam. Let op hoofdletters!"), sheet, kb.el);
+    ui.panel.append(h("div", { class: "toets-uitleg" }, "Tik een nummer aan en schrijf de naam. Let op hoofdletters!"), sheet);
     map.onTap((p) => {
       if (nagekeken) return;
       const near = map.nearest(p, ITEMS.map((it) => it.id));
@@ -932,7 +897,7 @@
     activate(rows[0]);
 
     doneBtn.onclick = () => {
-      nagekeken = true; KB.target = null; kb.el.remove(); ui.streak.textContent = "";
+      nagekeken = true; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); ui.streak.textContent = "";
       ui.panel.querySelector(".toets-uitleg").remove();
       let good = 0;
       const wrongs = [];
