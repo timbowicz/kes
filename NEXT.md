@@ -1,5 +1,30 @@
 # NEXT — Kes leert
 
+## Sessie 25-11-2026 middag: feedback Tim (iPad, screenshots IMG_0728-0730, niet in repo)
+
+### KLAAR (Playwright Chromium, file://, 0 page-errors)
+- **Ontdekken:** de lijst toont alleen nog wat open staat, per soort ("Kanalen: de blauwe lijnen", "Gebied: de bruine strook").
+  Alle plaatsen gehad → doelkaart oranje: "Alle plaatsen gehad! Nu nog 3 kanalen (blauwe lijnen) en de Hondsrug (bruine strook)."
+  Verder-knop noemt wat er mist. Onbekeken Hondsrug heeft een gele streepjesband. Hondsrug op 6/10 punten langs de strook
+  aan te tikken (de andere 4: Zuidlaren/Gieten/Borger/Emmen winnen, zoals bedoeld).
+- **Audio:** `stopSpeech()` in `volgendeOpdracht()` en `startSessie()`. Gemeten: bij 'Volgende opdracht' 1× pause, daarna `volgende-1.mp3`.
+- **Waar ligt het (en andere rondes, toets):** Hondsrug altijd vaag zichtbaar (`g.faint`, opacity 0.18) i.p.v. verborgen.
+- **Schrijf het op:** na een fout staat bovenaan "❌ Nog niet goed. Zo is het goed. Typ het over:", dan het goede woord,
+  dan meteen het invulveld; "Jij schreef" + tip eronder. Hint-knop verborgen tijdens overtypen. Kaart zoomt in op de plek.
+  Gemeten 1180×400 met kb-open, Verlengde Hoogeveensevaart: invulveld onderkant 192px, paneel tot 378px.
+- **Zoomen:** knijpen zoomt de kaart zelf (viewBox), schuiven met één vinger als je ingezoomd bent, knop "⤢ Hele kaart".
+  Paginazoom geblokkeerd (`gesturestart` preventDefault, `maximum-scale=1`, `touch-action:none` op de kaart).
+  `volgZichtbaarDeel` doet niets als `visualViewport.scale ≠ 1` (oorzaak van het witte scherm op IMG_0730).
+  Gemeten met CDP-touch: viewBox 901→225 breed, geen per-ongeluk-tik, daarna tik op Assen → Assen, reset terug naar origineel.
+- Cache-versie `v=202611251700` in beide index.html.
+
+### ONGEVERIFIEERD
+- **Niets op een echte iPad.** Of iOS-Safari met `gesturestart`-blokkade echt niet meer de pagina zoomt; of knijpen op de kaart
+  soepel loopt; of het overtyp-scherm met het echte toetsenbord past (in Chromium alleen nagebootst met een lager venster).
+
+### VOLGENDE STAP
+Tim test op de iPad. `cd /Users/timbo/Projects/kes && git log --oneline -3`
+
 ## Sessie 25-11-2026: toets/schrijven met iPad-toetsenbord (n.a.v. foto Tim 24-11)
 
 ### Probleem (foto)

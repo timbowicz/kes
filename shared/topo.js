@@ -89,6 +89,7 @@
     const root = document.documentElement;
     let basis = 0, breedte = 0;
     function upd() {
+      if (Math.abs(vv.scale - 1) > 0.02) return; // pagina ingezoomd: niet meebewegen, anders schuift alles weg
       if (Math.abs(vv.width - breedte) > 40) { basis = 0; breedte = vv.width; } // gedraaid
       basis = Math.max(basis, vv.height);
       root.style.setProperty("--vv-h", vv.height + "px");
@@ -97,6 +98,8 @@
     }
     vv.addEventListener("resize", upd); vv.addEventListener("scroll", upd); upd();
   })();
+  // Knijpen zoomt de kaart, niet de hele pagina (iOS-Safari negeert user-scalable=no).
+  ["gesturestart", "gesturechange"].forEach((t) => document.addEventListener(t, (e) => e.preventDefault(), { passive: false }));
 
   const esc = (t) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const spelHTML = (it) => esc(it.spel || it.name).replace(/\[([^\]]*)\]/g, "<mark>$1</mark>");
@@ -243,10 +246,77 @@
       }
     } catch (e) {}
 
+    /* Zoomen in de kaart zelf: knijpen met twee vingers, schuiven met één (alleen als je ingezoomd bent).
+       De pagina zoomt niet mee, dus het spelscherm blijft heel. */
+    let view = Object.assign({}, VB);
+    const resetBtn = h("button", { class: "map-reset hidden", onclick: () => api.resetView() }, "⤢ Hele kaart");
+    host.append(resetBtn);
+    function setView(v) {
+      const w = Math.max(VB.w / 5, Math.min(VB.w, v.w)), hh = w * (VB.h / VB.w);
+      let cx = v.x + v.w / 2, cy = v.y + v.h / 2;
+      cx = Math.max(VB.x, Math.min(VB.x + VB.w, cx)); cy = Math.max(VB.y, Math.min(VB.y + VB.h, cy));
+      if (w >= VB.w * 0.999) { cx = VB.x + VB.w / 2; cy = VB.y + VB.h / 2; }
+      view = { x: cx - w / 2, y: cy - hh / 2, w, h: hh };
+      api.vb = view;
+      svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
+      resetBtn.classList.toggle("hidden", w >= VB.w * 0.97);
+    }
+    function scaleOf(v) { const r = svg.getBoundingClientRect(); return { r, k: Math.max(v.w / (r.width || 1), v.h / (r.height || 1)) }; }
+    function unitsAt(v, x, y) { const { r, k } = scaleOf(v); return [v.x + v.w / 2 + (x - r.left - r.width / 2) * k, v.y + v.h / 2 + (y - r.top - r.height / 2) * k]; }
+    function zoomAround(v0, c0, x, y, f) { // f < 1 = inzoomen; punt c0 (kaarteenheden) komt onder scherm-punt x,y
+      const w = Math.max(VB.w / 5, Math.min(VB.w, v0.w * f)), hh = w * (VB.h / VB.w);
+      const { r, k } = scaleOf({ w, h: hh });
+      const cx = c0[0] - (x - r.left - r.width / 2) * k, cy = c0[1] - (y - r.top - r.height / 2) * k;
+      setView({ x: cx - w / 2, y: cy - hh / 2, w, h: hh });
+    }
+    const ptrs = new Map(); let pinch = null, pan = null, gestured = false;
+    const mid = () => { const a = [...ptrs.values()]; return [(a[0][0] + a[1][0]) / 2, (a[0][1] + a[1][1]) / 2, Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1])]; };
+    function startPan() { const [p] = [...ptrs.values()]; pan = { x: p[0], y: p[1], v: Object.assign({}, view) }; }
+    svg.addEventListener("pointerdown", (e) => {
+      ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+      if (ptrs.size === 1) { gestured = false; startPan(); }
+      if (ptrs.size === 2) { const [x, y, d] = mid(); pinch = { d, v: Object.assign({}, view), c: unitsAt(view, x, y) }; pan = null; gestured = true; }
+    });
+    svg.addEventListener("pointermove", (e) => {
+      if (!ptrs.has(e.pointerId)) return;
+      ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+      if (pinch && ptrs.size >= 2) { const [x, y, d] = mid(); zoomAround(pinch.v, pinch.c, x, y, pinch.d / Math.max(d, 1)); }
+      else if (pan && view.w < VB.w * 0.97) {
+        const { k } = scaleOf(pan.v), dx = e.clientX - pan.x, dy = e.clientY - pan.y;
+        if (Math.hypot(dx, dy) > 14) gestured = true;
+        setView({ x: pan.v.x - dx * k, y: pan.v.y - dy * k, w: pan.v.w, h: pan.v.h });
+      }
+    });
+    const up = (e) => {
+      ptrs.delete(e.pointerId);
+      if (ptrs.size < 2) pinch = null;
+      if (ptrs.size === 1) startPan(); else if (!ptrs.size) pan = null;
+    };
+    svg.addEventListener("pointerup", up); svg.addEventListener("pointercancel", up);
+    svg.addEventListener("wheel", (e) => { // trackpad-knijpen / ctrl+scroll op de computer
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      zoomAround(view, unitsAt(view, e.clientX, e.clientY), e.clientX, e.clientY, Math.exp(e.deltaY * 0.01));
+    }, { passive: false });
+
     const api = {
       vb: VB,
       svg,
-      showRidge(on) { ridgeG.style.display = on ? "" : "none"; },
+      resetView() { setView(VB); },
+      zoomTo(id, f) { // licht inzoomen op één plek, zodat die groot in beeld staat
+        const pts = GEOM[id].pt ? [GEOM[id].pt] : GEOM[id].lines.flat();
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        pts.forEach(([x, y]) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); });
+        const w = Math.max(VB.w * (f || 0.6), (x1 - x0) * 1.3, (y1 - y0) * 1.3 * (VB.w / VB.h));
+        const hh = w * (VB.h / VB.w);
+        setView({ x: (x0 + x1) / 2 - w / 2, y: (y0 + y1) / 2 - hh / 2, w, h: hh });
+      },
+      show(id) { // ingezoomd en de plek valt buiten beeld: schuif ernaartoe
+        if (view.w >= VB.w * 0.97) return;
+        const [x, y] = anchor(id);
+        if (x < view.x || x > view.x + view.w || y < view.y || y > view.y + view.h) setView({ x: x - view.w / 2, y: y - view.h / 2, w: view.w, h: view.h });
+      },
+      showRidge(on) { ridgeG.classList.toggle("faint", !on); }, // uit = vaag, zodat je ziet waar de zandrug ligt
       clear() { over.replaceChildren(); hlUnder.replaceChildren(); namesG.replaceChildren(); },
       mark(id, cls) {
         const g = GEOM[id];
@@ -263,7 +333,7 @@
         const t = s("text", { class: "name " + (cls || "") });
         const isPt = !!GEOM[id].pt && !(M.tags && M.tags[id]);
         if (isPt) {
-          const right = x > VB.x + VB.w - 230;
+          const right = x > api.vb.x + api.vb.w - 230;
           t.setAttribute("x", right ? x - 18 : x + 18);
           t.setAttribute("y", y - 14);
           t.setAttribute("text-anchor", right ? "end" : "start");
@@ -301,7 +371,7 @@
             } else statusPts.append(s("circle", { cx: g.pt[0], cy: g.pt[1], r: r + 8, class: "todo-ring" }));
           } else if (kind(it) === "kanaal") {
             statusLines.append(s("path", { d: g.d, class: ok ? "seen-line" : "todo-line" }));
-          } else if (ok) statusLines.append(s("path", { d: g.d, class: "seen-ridge" }));
+          } else statusLines.append(s("path", { d: g.d, class: ok ? "seen-ridge" : "todo-ridge" }));
         });
       },
       tapmark(p) { over.append(s("circle", { cx: p[0], cy: p[1], r: 9, class: "tapmark" })); },
@@ -327,7 +397,7 @@
         let down = null;
         svg.addEventListener("pointerdown", (e) => { down = [e.clientX, e.clientY]; });
         svg.addEventListener("pointerup", (e) => {
-          if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 14) return;
+          if (!down || gestured || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 14) return;
           fn(api.toSvg(e), e);
         });
       },
@@ -488,10 +558,12 @@
   }
   function startSessie() {
     SESSIE = { plan: PLANNEN[advice()].slice(), i: 0, start: Date.now() };
+    stopSpeech();
     cheer("sessieStart");
     start(SESSIE.plan[0]);
   }
   function volgendeOpdracht() {
+    stopSpeech(); // feitje van de vorige opdracht niet laten doorpraten
     SESSIE.i++;
     if (SESSIE.i >= SESSIE.plan.length || Date.now() - SESSIE.start >= KWARTIER) return sessieKlaar();
     cheer("volgende");
@@ -551,35 +623,58 @@
     ui.mapbox.parentNode.classList.add("map-first"); // telefoon: eerst de kaart, dan het doel en de lijst
     const map = createMap(ui.mapbox, { ridge: true, tags: false });
     let showAll = false, current = null;
-    const chips = h("div", { class: "chips" });
+    const chips = h("div", { class: "todo-list" });
     const card = h("div", {}, h("div", { class: "feedback info" }, "👆 Tik op een plek met een gele ring. Dan hoor je hoe hij heet en krijg je een weetje."));
     const counter = h("div", { class: "streak" });
     ui.streak.replaceWith(counter);
     const goalBar = h("i", {});
     const goalText = h("span", { class: "goal-count" });
+    const goalTitle = h("div", { class: "goal-title" });
     const goal = h("div", { class: "goal" },
-      h("div", { class: "goal-title" }, "🎯 Tik alle plekken aan en kijk goed waar ze liggen"),
+      goalTitle,
       h("div", { class: "goal-row" }, h("div", { class: "meter-bar goal-meter" }, goalBar), goalText),
       h("div", { class: "goal-legend" }, h("span", { class: "lg todo" }, "nog ontdekken"), h("span", { class: "lg ok" }, "✓ al bekeken")));
     const toggle = h("label", { class: "toggle" }, h("input", { type: "checkbox", onchange: (e) => { showAll = e.target.checked; draw(); } }), "Alle namen tonen");
+    const SOORT = { // hoe je het op de kaart herkent
+      plaats: (n) => n === 1 ? "1 plaats (stip)" : `${n} plaatsen (stippen)`,
+      kanaal: (n) => n === 1 ? "1 kanaal (blauwe lijn)" : `${n} kanalen (blauwe lijnen)`,
+      rug: (n, its) => n === 1 ? `de ${its[0].name} (bruine strook)` : `${n} zandruggen (bruine stroken)`,
+    };
+    const GROEP = { plaats: "📍 Plaatsen: de stippen", kanaal: "〰️ Kanalen: de blauwe lijnen", rug: "⛰️ Gebied: de bruine strook" };
+    const open = () => ITEMS.filter((it) => !P.seen[it.id]);
+    function nogTeGaan() { // "3 kanalen (blauwe lijnen) en de Hondsrug (bruine strook)"
+      const per = {}; open().forEach((it) => (per[kind(it)] = per[kind(it)] || []).push(it));
+      const delen = ["plaats", "kanaal", "rug"].filter((k) => per[k]).map((k) => SOORT[k](per[k].length, per[k]));
+      return delen.length > 1 ? delen.slice(0, -1).join(", ") + " en " + delen[delen.length - 1] : delen[0] || "";
+    }
     function updCount() {
       const n = seenCount();
       counter.textContent = `👀 ${n}/${ITEMS.length}`;
       goalBar.style.width = `${(n / ITEMS.length) * 100}%`;
       goalText.textContent = n >= ITEMS.length ? "Alles bekeken! 🎉" : `${n} van de ${ITEMS.length}`;
+      const plaatsenAf = ITEMS.filter((it) => kind(it) === "plaats").every((it) => P.seen[it.id]);
+      goalTitle.textContent = n >= ITEMS.length ? "🎉 Je hebt alles bekeken!"
+        : plaatsenAf ? `👍 Alle plaatsen gehad! Nu nog ${nogTeGaan()}.`
+        : "🎯 Tik alle plekken aan en kijk goed waar ze liggen";
+      goal.classList.toggle("nudge", plaatsenAf && n < ITEMS.length);
     }
     function draw() {
       map.clear();
       if (showAll) ITEMS.forEach((it) => map.name(it.id, it.name));
       map.status(P.seen);
       if (current) { map.mark(current.id, "focus-c"); if (!showAll) map.name(current.id, current.name, "good"); }
-      chips.replaceChildren(...ITEMS.map((it) => h("span", { class: "chip" + (P.seen[it.id] ? " seen" : " todo") + (current === it ? " active" : "") },
-        P.seen[it.id] ? "✓ " : "", it.name)));
+      // Alleen wat nog open staat, per soort: zo zie je meteen wat je nog mist.
+      const rest = open();
+      chips.replaceChildren(...(rest.length ? [h("div", { class: "chips-title" }, "Nog te ontdekken:")].concat(
+        ["plaats", "kanaal", "rug"].filter((k) => rest.some((it) => kind(it) === k)).map((k) => h("div", { class: "chip-group" },
+          h("div", { class: "chip-group-title" }, GROEP[k]),
+          h("div", { class: "chips-row" }, rest.filter((it) => kind(it) === k).map((it) => h("span", { class: "chip todo" }, it.name))))))
+        : [h("div", { class: "chips-title" }, "✅ Alles ontdekt!")]));
       updCount();
       if (SESSIE) {
-        const alles = ITEMS.every((x) => P.seen[x.id]);
+        const alles = !rest.length;
         verder.disabled = !alles;
-        verder.textContent = alles ? "Klaar! Volgende opdracht →" : `Bekijk alle plekken (${seenCount()}/${ITEMS.length})`;
+        verder.textContent = alles ? "Klaar! Volgende opdracht →" : `Nog ${nogTeGaan()}`;
       }
     }
     const verder = h("button", { class: "btn green", onclick: volgendeOpdracht }, "");
@@ -630,7 +725,7 @@
     function setStreak() { ui.streak.textContent = streak >= 2 ? `🔥 ${streak}` : ""; }
     function next() {
       tapHandler = null;
-      map.clear(); map.showRidge(false);
+      map.clear(); map.showRidge(false); map.resetView();
       if (pos >= queue.length) return finish();
       slots.forEach((d, i) => d.classList.toggle("now", i === pos));
       const it = queue[pos];
@@ -770,24 +865,28 @@
       schrijf(it, done, next) {
         if (kind(it) === "rug") map.showRidge(true);
         map.mark(it.id, "focus-c");
+        map.zoomTo(it.id); // de kaart is klein als het toetsenbord open is: zoom in op de plek
         // Eén veld en één toetsenbord voor de hele ronde.
         if (!W) {
           W = {
             q: h("div", { class: "q" }),
+            target: h("div", { class: "diff target hidden" }), // na een fout: het goede woord, vlak boven het veld
             input: kField("Antwoord"),
             hintBtn: h("button", { class: "btn small ghost" }, "💡 Hint"),
             hintLine: h("div", { class: "hintline hidden" }),
             fb: h("div", {}),
           };
+          W.hintRow = h("div", { class: "hint-row" }, W.hintBtn, W.hintLine);
+          W.scroll = h("div", { class: "panel-scroll" }, h("div", { class: "prompt" }, W.q), W.target, h("div", { class: "write" }, W.input.el), W.hintRow, W.fb);
           ui.panel.classList.add("with-kb"); ui.panel.parentNode.classList.add("kb-mode");
-          ui.panel.replaceChildren(
-            h("div", { class: "panel-scroll" }, h("div", { class: "prompt" }, W.q), h("div", { class: "write" }, W.input.el),
-              h("div", { style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap" }, W.hintBtn, W.hintLine), W.fb));
+          ui.panel.replaceChildren(W.scroll);
         }
         const { input, hintBtn, hintLine, fb } = W;
         W.q.textContent = `Hoe heet ${deze(it)}? Schrijf het goed!`;
+        W.q.className = "q"; W.target.classList.add("hidden"); W.hintRow.classList.remove("hidden");
         input.value = ""; input.className = ""; input.readOnly = false; input.placeholder = "Typ het hier…";
         hintLine.classList.add("hidden"); hintLine.textContent = ""; hintBtn.disabled = false; fb.replaceChildren();
+        W.scroll.scrollTop = 0;
         let hints = 0, capsWarned = false, finished = false, phase = "ask";
         hintBtn.onclick = () => {
           hints++;
@@ -821,19 +920,21 @@
             input.focus();
             return;
           }
-          // fout: laat het verschil zien en laat het overtypen
+          // fout: bovenaan het goede woord, dan meteen het veld om het over te typen. Wat je schreef en
+          // de tip staan eronder. Zo blijft het belangrijkste in beeld, ook met het toetsenbord open.
           beep("bad"); done(false, r.res === "other" ? { alsoLoc: false } : {});
           map.clear(); map.mark(it.id, "focus-c"); map.name(it.id, it.name, "good");
           const d = diffHTML(norm(input.value), it.name);
-          fb.replaceChildren(h("div", { class: "feedback bad" },
-            h("span", { class: "title" }, r.res === "other" ? `Dat is de naam van een andere plek!` : "Nog niet goed."),
-            r.res === "other" ? h("div", {}, `${r.other.name} ligt ergens anders. Deze plek heet:`) : h("div", {}, "Jij schreef:"),
-            r.res === "other" ? null : h("div", { class: "diff", html: d.mine }),
-            h("div", { style: "margin-top:4px" }, "Zo is het goed:"), h("div", { class: "diff", html: spelHTML(it) }),
-            it.tip ? h("div", { style: "margin-top:6px" }, "✏️ ", it.tip) : null,
-            h("div", { style: "margin-top:8px;font-weight:800" }, "Typ het nu goed over 👆")));
+          W.q.className = "q bad";
+          W.q.textContent = r.res === "other" ? "❌ Dat is een andere plek! Deze heet zo. Typ het over:" : "❌ Nog niet goed. Zo is het goed. Typ het over:";
+          W.target.innerHTML = spelHTML(it); W.target.classList.remove("hidden");
+          W.hintRow.classList.add("hidden");
+          fb.replaceChildren(h("div", { class: "feedback bad small" },
+            r.res === "other" ? h("div", {}, `${r.other.name} ligt ergens anders.`) : h("div", { class: "mine" }, "Jij schreef: ", h("span", { class: "diff", html: d.mine })),
+            it.tip ? h("div", { style: "margin-top:4px" }, "✏️ ", it.tip) : null));
           say(it);
-          phase = "copy"; input.value = ""; input.className = ""; input.placeholder = it.name; input.focus();
+          phase = "copy"; input.value = ""; input.className = ""; input.placeholder = "Typ het hier over…"; input.focus();
+          W.scroll.scrollTop = 0;
         };
         input.onenter = submit;
         input.focus();
@@ -860,7 +961,7 @@
       if (nagekeken) return;
       active = row;
       rows.forEach((r) => r.line.classList.toggle("active", r === row));
-      map.clear(); map.mark(row.it.id, "focus-c"); map.bubble(row.it.id, row.it.nr);
+      map.clear(); map.mark(row.it.id, "focus-c"); map.bubble(row.it.id, row.it.nr); map.show(row.it.id);
       if (document.activeElement !== row.input.el) row.input.focus();
       row.line.scrollIntoView({ block: "nearest" });
     }

@@ -375,3 +375,33 @@ html.kb-open .toets-uitleg { display: none; }
   .chip { font-size: 15px; padding: 5px 10px; min-height: 36px; }
   .dots { max-width: 140px; }
 }
+
+/* ---------- 25-11 middag: feedback iPad ---------- */
+/* zandrug: in de oefeningen vaag zichtbaar, in Ontdekken een gele streepjesrand zolang je hem nog niet hebt bekeken */
+.map g.faint .ridge { stroke-opacity: 0.18; }
+.map .todo-ridge { fill: none; stroke: #f5b800; stroke-width: 46; stroke-opacity: 0.55; stroke-dasharray: 26 20; stroke-linecap: butt; stroke-linejoin: round; }
+/* Ontdekken: alleen wat nog open staat, per soort */
+.todo-list { display: grid; gap: 10px; }
+.chips-title { font-weight: 900; font-size: 17px; }
+.chip-group { display: grid; gap: 6px; }
+.chip-group-title { font-weight: 800; font-size: 15px; color: var(--ink-soft); }
+.chips-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.goal.nudge { border-color: var(--orange, #ff8a3d); background: #fff1e4; animation: nudge 1.6s ease-in-out 2; }
+@keyframes nudge { 0%, 100% { transform: none; } 20% { transform: rotate(-1deg); } 40% { transform: rotate(1deg); } 60% { transform: none; } }
+/* kaart zelf zoomen (knijpen), de pagina niet */
+.mapbox svg.map { touch-action: none; }
+.map-reset { position: absolute; right: 10px; top: 10px; border: 0; border-radius: 99px; padding: 8px 14px; min-height: 40px;
+  background: #fff; box-shadow: var(--shadow); font-weight: 800; font-size: 16px; }
+.map-reset.hidden { display: none; }
+/* Schrijf het op: na een fout het goede woord direct boven het veld */
+.hint-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.hint-row.hidden, .diff.target.hidden { display: none; }
+.prompt .q.bad { color: var(--red); font-size: 0.85em; }
+.diff.target { font-size: 26px; line-height: 1.25; background: #fffbea; border: 3px solid var(--yellow); border-radius: 14px; padding: 6px 12px; letter-spacing: 0.5px; }
+.feedback.small { font-size: 16px; padding: 8px 12px; }
+.feedback .mine .diff { font-size: 20px; }
+html.kb-open .panel.with-kb { padding: 10px 12px; }
+html.kb-open .panel-scroll { gap: 8px; }
+html.kb-open .prompt { font-size: 19px; }
+html.kb-open .write .kfield { height: 56px; font-size: 24px; }
+html.kb-open .diff.target { font-size: 22px; padding: 4px 10px; }
